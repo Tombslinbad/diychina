@@ -2,15 +2,31 @@ import { initializeApp as initializeClientApp, getApps, getApp, deleteApp } from
 import { initializeFirestore, terminate, getFirestore } from "firebase/firestore";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 // Load configuration securely via FS with multi-level fallbacks to handle compile environments
 let firebaseConfig: any = null;
+
+let localDir = "";
+try {
+  // Safe ESM __dirname derivation
+  const filename = fileURLToPath(import.meta.url);
+  localDir = path.dirname(filename);
+} catch (err) {
+  // Fallback for legacy environments
+}
+
 const configPaths = [
   path.resolve(process.cwd(), "firebase-applet-config.json"),
-  path.resolve(__dirname, "../../firebase-applet-config.json"),
-  path.resolve(__dirname, "../firebase-applet-config.json"),
-  path.resolve(__dirname, "firebase-applet-config.json")
 ];
+
+if (localDir) {
+  configPaths.push(
+    path.resolve(localDir, "../../firebase-applet-config.json"),
+    path.resolve(localDir, "../firebase-applet-config.json"),
+    path.resolve(localDir, "firebase-applet-config.json")
+  );
+}
 
 for (const p of configPaths) {
   try {
