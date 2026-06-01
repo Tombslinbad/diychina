@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { OpenAI } from "openai";
 import dotenv from "dotenv";
@@ -9,16 +8,17 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-// Load Firebase Config to interact with firestore database directly
-import firebaseConfig from "./firebase-applet-config.json" assert { type: "json" };
+// Load Firebase Config to interact with firestore database directly using fs.readFileSync to make it robust on Vercel/ESM
+const firebaseConfigPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
 const DB_SECRET_SUFFIX = "_secure_gateway_passkey_235027986297";
 import { initializeApp as initializeClientApp } from "firebase/app";
 import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
-import { UNIVERSITIES } from "./src/universitiesData.ts";
-import { CSCA_MATH_QUESTIONS } from "./src/cscaQuestionsData.ts";
-import { LANGUAGE_INSTITUTES } from "./src/languageInstitutesData.ts";
-import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "./src/lib/emailService.ts";
-import webhookRouter from "./src/routes/webhook.ts";
+import { UNIVERSITIES } from "./src/universitiesData";
+import { CSCA_MATH_QUESTIONS } from "./src/cscaQuestionsData";
+import { LANGUAGE_INSTITUTES } from "./src/languageInstitutesData";
+import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "./src/lib/emailService";
+import webhookRouter from "./src/routes/webhook";
 
 const app = express();
 const PORT = 3000;
@@ -746,6 +746,7 @@ app.post("/api/gemini/consult", async (req, res) => {
 async function startServer() {
   // Vite integration
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
