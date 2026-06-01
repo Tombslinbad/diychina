@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Premium user admissions portal account",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "premium": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "paymentReference": { "type": "string" }
+      },
+      "required": ["uid", "email", "premium", "createdAt"]
+    },
+    "University": {
+      "title": "Chinese University Detail",
+      "description": "University records for CSC scholarship matching",
+      "type": "object",
+      "properties": {
+        "universityId": { "type": "string" },
+        "name": { "type": "string" },
+        "agencyCode": { "type": "string" },
+        "cscTypeA": { "type": "boolean" },
+        "cscTypeB": { "type": "boolean" },
+        "provincial": { "type": "boolean" },
+        "silkRoad": { "type": "boolean" },
+        "tracks": { "type": "array" },
+        "stipendMasters": { "type": "number" },
+        "stipendPhD": { "type": "number" },
+        "city": { "type": "string" },
+        "ranking": { "type": "number" }
+      },
+      "required": ["name", "agencyCode", "stipendMasters", "stipendPhD"]
+    },
+    "CSCAMockQuestion": {
+      "title": "CSCA Mock CBT Question",
+      "description": "Timed practice exam questions for China Scholastic Competency Assessment",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "subject": { "type": "string", "enum": ["math", "physics", "chemistry", "professional_chinese"] },
+        "medium": { "type": "string", "enum": ["english", "chinese"] },
+        "questionText": { "type": "string" },
+        "options": { "type": "array" },
+        "correctOption": { "type": "string", "enum": ["A", "B", "C", "D"] },
+        "explanation": { "type": "string" }
+      },
+      "required": ["questionId", "subject", "medium", "questionText", "options", "correctOption"]
+    },
+    "LanguageInstitute": {
+      "title": "Business Language Training School",
+      "description": "Short-term Mandarin training centers in major trading hubs bypass diplomatic hoops",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tuitionRmb": { "type": "number", "description": "Tuition cost in RMB" },
+        "location": { "type": "string", "description": "Trading hub city (Guangzhou, Yiwu, Shanghai)" },
+        "startDates": { "type": "array" },
+        "applicationLink": { "type": "string" }
+      },
+      "required": ["id", "name", "tuitionRmb", "location", "startDates"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles who registered / paid for the China Admissions portal"
+    },
+    "/universities/{universityId}": {
+      "schema": "University",
+      "description": "Curated database of premier Chinese universities and stipend matrices"
+    },
+    "/csca_mock_questions/{questionId}": {
+      "schema": "CSCAMockQuestion",
+      "description": "China Scholastic Competency Assessment practice questions"
+    },
+    "/language_institutes/{instituteId}": {
+      "schema": "LanguageInstitute",
+      "description": "Commercial trader Mandarin language school listings and fees"
+    }
+  }
+}

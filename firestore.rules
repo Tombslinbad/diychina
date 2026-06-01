@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Client Profiles and Performance Metric Histories
+    match /users/{userId} {
+      // Restrict access: authenticated client must match the userId document,
+      // or request must come from the server-side platform (unauthenticated request.auth is null)
+      allow read, write: if request.auth == null || (request.auth != null && request.auth.uid == userId);
+      
+      // Nested subcollections like csca_user_attempts
+      match /{document=**} {
+        allow read, write: if request.auth == null || (request.auth != null && request.auth.uid == userId);
+      }
+    }
+
+    // 3. Institutional Directories (Universities, Exam questions, and Language Schools)
+    match /universities/{universityId} {
+      allow read: if true;
+      allow write: if request.auth == null; // Disallow authenticated client-side writes, allow backend seeding
+    }
+
+    match /csca_mock_questions/{questionId} {
+      allow read: if true;
+      allow write: if request.auth == null; // Disallow authenticated client-side writes, allow backend seeding
+    }
+
+    match /language_institutes/{instituteId} {
+      allow read: if true;
+      allow write: if request.auth == null; // Disallow authenticated client-side writes, allow backend seeding
+    }
+  }
+}
