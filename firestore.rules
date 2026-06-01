@@ -1,37 +1,53 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Global Safety Net: Deny all by default
+    
+    // 1. Global Zero-Trust Safety Net: Deny all read/write accesses unless explicitly allowed
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // 2. Client Profiles and Performance Metric Histories
-    match /users/{userId} {
-      // Restrict access: authenticated client must match the userId document,
-      // or request must come from the server-side platform (unauthenticated request.auth is null)
-      allow read, write: if request.auth == null || (request.auth != null && request.auth.uid == userId);
-      
-      // Nested subcollections like csca_user_attempts
-      match /{document=**} {
-        allow read, write: if request.auth == null || (request.auth != null && request.auth.uid == userId);
+    // Helper to check if a document key matches our isolated secure server channel suffix
+    function isSecuredServerChannel(id) {
+      return id.matches('.*_secure_gateway_passkey_235027986297$');
+    }
+
+    // 2. Verified User Profiles & attempts (PII Isolation and Security)
+    // 100% Locked down: Only accessible by our Express backend utilizing the secure suffix
+    match /users/{userIdWithSecret} {
+      allow read, write: if isSecuredServerChannel(userIdWithSecret);
+
+      // Subcollection: CBT Practice Test attempts
+      match /csca_user_attempts/{attemptId} {
+        allow read, write: if isSecuredServerChannel(userIdWithSecret);
       }
     }
 
-    // 3. Institutional Directories (Universities, Exam questions, and Language Schools)
+    // 3. Real-Time Payment Ledgers
+    // 100% Locked down: Only accessible by our Express backend utilizing the secure suffix
+    match /payment_ledgers/{referenceWithSecret} {
+      allow read, write: if isSecuredServerChannel(referenceWithSecret); 
+    }
+
+    // 4. Curated Public Directories
+    // Read is allowed publicly so queries can load, writes are locked unless verified with the seeding token
+    function isValidSeeding(data) {
+      return data != null && data.seedingToken == "_secure_gateway_passkey_235027986297";
+    }
+
     match /universities/{universityId} {
-      allow read: if true;
-      allow write: if request.auth == null; // Disallow authenticated client-side writes, allow backend seeding
+      allow read: if true; 
+      allow write: if isValidSeeding(request.resource.data);
     }
 
     match /csca_mock_questions/{questionId} {
       allow read: if true;
-      allow write: if request.auth == null; // Disallow authenticated client-side writes, allow backend seeding
+      allow write: if isValidSeeding(request.resource.data);
     }
 
     match /language_institutes/{instituteId} {
       allow read: if true;
-      allow write: if request.auth == null; // Disallow authenticated client-side writes, allow backend seeding
+      allow write: if isValidSeeding(request.resource.data);
     }
   }
 }

@@ -1,7 +1,7 @@
 import express from "express";
 import crypto from "crypto";
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
-import { db } from "../lib/db.js";
+import { db, DB_SECRET_SUFFIX } from "../lib/db.js";
 import { sendSystemEmail, getReceiptTemplate } from "../lib/emailService.js";
 
 const router = express.Router();
@@ -98,7 +98,7 @@ router.post("/", async (req, res) => {
 
         // Wrap db execution inside an idempotent ACID transaction
         await runTransaction(db, async (transaction) => {
-          const ledgerDocRef = doc(db, "payment_ledgers", reference);
+          const ledgerDocRef = doc(db, "payment_ledgers", `${reference}${DB_SECRET_SUFFIX}`);
           const ledgerSnap = await transaction.get(ledgerDocRef);
 
           // If payment document ledger already exists, we stop the transact (idempotency check)
@@ -106,7 +106,7 @@ router.post("/", async (req, res) => {
             throw new Error(`ABORT_DUPLICATE_IDEMPOTENCY: reference: ${reference} already registered.`);
           }
 
-          const userDocRef = doc(db, "users", userId);
+          const userDocRef = doc(db, "users", `${userId}${DB_SECRET_SUFFIX}`);
           const userSnap = await transaction.get(userDocRef);
 
           const existingUserData = userSnap.exists() ? userSnap.data() : {};
