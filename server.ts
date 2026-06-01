@@ -8,9 +8,7 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-// Load Firebase Config to interact with firestore database directly using fs.readFileSync to make it robust on Vercel/ESM
-const firebaseConfigPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
+import firebaseConfig from "./firebase-applet-config.json";
 const DB_SECRET_SUFFIX = "_secure_gateway_passkey_235027986297";
 import { initializeApp as initializeClientApp } from "firebase/app";
 import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
@@ -34,9 +32,7 @@ app.use("/api/webhook", webhookRouter);
 // Initialize Client Web SDK for the backend server
 // This is the absolute safest, zero-credential friction path for our developer container databases!
 const clientApp = initializeClientApp(firebaseConfig);
-const db = initializeFirestore(clientApp, {
-  experimentalForceLongPolling: true
-}, firebaseConfig.firestoreDatabaseId);
+const db = initializeFirestore(clientApp, {}, firebaseConfig.firestoreDatabaseId);
 
 // Initialize Gemini SDK with telemetry User-Agent as per gemini-api skill instructions
 const ai = new GoogleGenAI({
