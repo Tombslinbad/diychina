@@ -8,10 +8,8 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-import firebaseConfig from "./firebase-applet-config.json";
-const DB_SECRET_SUFFIX = "_secure_gateway_passkey_235027986297";
-import { initializeApp as initializeClientApp } from "firebase/app";
-import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { db, DB_SECRET_SUFFIX } from "./src/lib/db.ts";
+import { doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
 import { UNIVERSITIES } from "./src/universitiesData";
 import { CSCA_MATH_QUESTIONS } from "./src/cscaQuestionsData";
 import { LANGUAGE_INSTITUTES } from "./src/languageInstitutesData";
@@ -28,11 +26,6 @@ app.use(express.json());
 
 // Keep legacy webhook mount for backward compatibility in standard JSON-parsed simulations if needed
 app.use("/api/webhook", webhookRouter);
-
-// Initialize Client Web SDK for the backend server
-// This is the absolute safest, zero-credential friction path for our developer container databases!
-const clientApp = initializeClientApp(firebaseConfig);
-const db = initializeFirestore(clientApp, {}, firebaseConfig.firestoreDatabaseId);
 
 // Initialize Gemini SDK with telemetry User-Agent as per gemini-api skill instructions
 const ai = new GoogleGenAI({

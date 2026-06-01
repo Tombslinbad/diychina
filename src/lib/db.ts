@@ -1,6 +1,11 @@
 import { initializeApp as initializeClientApp } from "firebase/app";
 import { initializeFirestore } from "firebase/firestore";
-import firebaseConfig from "../../firebase-applet-config.json" assert { type: "json" };
+import fs from "fs";
+import path from "path";
+
+// Load configuration securely via FS to bypass any ESM import assertion syntax discrepancies on Vercel
+const firebaseConfigPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
 
 const clientApp = initializeClientApp(firebaseConfig);
 export const db = initializeFirestore(clientApp, {
