@@ -3,9 +3,10 @@ import { initializeFirestore, terminate, getFirestore } from "firebase/firestore
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import firebaseConfigLocal from "../../firebase-applet-config.json";
 
 // Load configuration securely via FS with multi-level fallbacks to handle compile environments
-let firebaseConfig: any = null;
+let firebaseConfig: any = firebaseConfigLocal;
 
 let localDir = "";
 try {
@@ -38,12 +39,8 @@ for (const p of configPaths) {
 }
 
 if (!firebaseConfig) {
-  // Absolute fallback: mock or empty schema representation to prevent server crash during builds
-  firebaseConfig = {
-    projectId: "gen-lang-client-0951823801",
-    apiKey: "AIzaSyBNkOCl2-gJiRZuOEccZ0Nj8RYV1POuv8I",
-    firestoreDatabaseId: "ai-studio-87d80e78-7f01-4799-8071-b66b2f4316d0"
-  };
+  // Absolute fallback to statically imported JSON file if file read fails at runtime in serverless hosts
+  firebaseConfig = firebaseConfigLocal;
 }
 
 let clientApp: any = null;
