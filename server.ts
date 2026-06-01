@@ -762,12 +762,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`===============================================`);
-    console.log(`  CHINA ADMISSIONS PORTAL FULLSTACK ENGINE      `);
-    console.log(`  Server running on http://0.0.0.0:${PORT}       `);
-    console.log(`===============================================`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`===============================================`);
+      console.log(`  CHINA ADMISSIONS PORTAL FULLSTACK ENGINE      `);
+      console.log(`  Server running on http://0.0.0.0:${PORT}       `);
+      console.log(`===============================================`);
+    });
+  }
 }
 
 startServer();
+
+export default app;
