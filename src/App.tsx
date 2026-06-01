@@ -42,6 +42,7 @@ import { generateCSCAQuestions } from "./lib/cscaGenerator";
 import { LANGUAGE_INSTITUTES, LanguageInstitute } from "./languageInstitutesData";
 import { useCscaStore } from "./lib/cscaStore";
 import { Dashboard } from "./components/Dashboard";
+import heroImg from "./assets/images/china_university_admission_1780294406477.png";
 
 export default function App() {
   // Authentication & Navigation States
@@ -1005,7 +1006,7 @@ export default function App() {
                     <div className="relative rounded-2xl overflow-hidden border border-slate-800/80 shadow-[0_0_50px_rgba(245,158,11,0.05)] aspect-[4/3] group bg-slate-950">
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent z-10 animate-fade-in"></div>
                       <img 
-                        src="/src/assets/images/china_university_admission_1780294406477.png" 
+                        src={heroImg} 
                         alt="African student admitted to prestigious Chinese University" 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         referrerPolicy="no-referrer"
