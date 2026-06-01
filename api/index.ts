@@ -8,13 +8,13 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-import { db, DB_SECRET_SUFFIX, closeDb } from "../src/lib/db.js";
+import { db, DB_SECRET_SUFFIX, closeDb } from "../src/lib/db";
 import { doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
-import { UNIVERSITIES } from "../src/universitiesData.js";
-import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData.js";
-import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData.js";
-import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "../src/lib/emailService.js";
-import webhookRouter from "../src/routes/webhook.js";
+import { UNIVERSITIES } from "../src/universitiesData";
+import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData";
+import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData";
+import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "../src/lib/emailService";
+import webhookRouter from "../src/routes/webhook";
 
 const app = express();
 
