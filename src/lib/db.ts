@@ -43,62 +43,55 @@ if (!firebaseConfig) {
   firebaseConfig = firebaseConfigLocal;
 }
 
-let clientApp: any = null;
-let dbInstance: any = null;
+const activeGlobal: any = typeof globalThis !== "undefined" ? globalThis : {};
 
-export function getDb() {
-  if (!dbInstance) {
-    if (getApps().length > 0) {
-      clientApp = getApp();
-    } else {
-      clientApp = initializeClientApp(firebaseConfig);
-    }
-    
+let clientApp: any;
+if (activeGlobal._global_firebase_app) {
+  clientApp = activeGlobal._global_firebase_app;
+} else if (getApps().length > 0) {
+  clientApp = getApp();
+  activeGlobal._global_firebase_app = clientApp;
+} else {
+  clientApp = initializeClientApp(firebaseConfig);
+  activeGlobal._global_firebase_app = clientApp;
+}
+
+const firestoreKey = `_firestore_instance_${firebaseConfig.firestoreDatabaseId || "default"}`;
+let firestoreInstance: any = activeGlobal[firestoreKey] || (clientApp as any)[firestoreKey];
+
+if (!firestoreInstance) {
+  try {
+    // Try retrieving existing initialized firestore first to avoid double initializeFirestore
+    firestoreInstance = getFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
+    activeGlobal[firestoreKey] = firestoreInstance;
+    (clientApp as any)[firestoreKey] = firestoreInstance;
+    console.log("[Dynamic Firestore] Cleanly retrieved initialized database instance.");
+  } catch (e) {
     try {
-      dbInstance = initializeFirestore(clientApp, {
+      firestoreInstance = initializeFirestore(clientApp, {
         experimentalForceLongPolling: true
       }, firebaseConfig.firestoreDatabaseId);
-      console.log("[Dynamic Firestore] Created a clean live database session instance.");
+      activeGlobal[firestoreKey] = firestoreInstance;
+      (clientApp as any)[firestoreKey] = firestoreInstance;
+      console.log("[Dynamic Firestore] Cleanly initialized new live database session instance.");
     } catch (err: any) {
-      if (err.code === "failed-precondition" || err.message?.includes("already been") || err.message?.includes("different options")) {
-        dbInstance = getFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
-        console.log("[Dynamic Firestore] Retrieved existing warmed database instance safely.");
-      } else {
-        throw err;
-      }
+      firestoreInstance = getFirestore(clientApp, firebaseConfig.firestoreDatabaseId);
+      activeGlobal[firestoreKey] = firestoreInstance;
+      (clientApp as any)[firestoreKey] = firestoreInstance;
+      console.log("[Dynamic Firestore] Fallback retrieved existing database instance safely.");
     }
   }
-  return dbInstance;
+}
+
+export const db = firestoreInstance;
+
+export function getDb() {
+  return db;
 }
 
 export async function closeDb() {
-  if (dbInstance) {
-    try {
-      await terminate(dbInstance);
-      console.log("[Dynamic Firestore] Terminated database connection successfully.");
-    } catch (e: any) {
-      console.warn("[Dynamic Firestore] Warning while terminating Firestore session:", e?.message || e);
-    }
-    dbInstance = null;
-  }
-  // We avoid deleting the clientApp registration in warm lambdas to ensure fast re-indexing across warm runs
-  clientApp = null;
+  // Safe no-op to prevent destroying database connections on active request lifecycles
 }
-
-// Proxied exports allows existing imports to bind on fresh dynamic connections transparently
-export const db = new Proxy({}, {
-  get(target, prop, receiver) {
-    const activeDb = getDb();
-    const val = Reflect.get(activeDb, prop, activeDb);
-    if (typeof val === "function") {
-      return val.bind(activeDb);
-    }
-    return val;
-  },
-  getPrototypeOf(target) {
-    return Object.getPrototypeOf(getDb());
-  }
-}) as any;
 
 // Secure backend-only suffix token used to isolate server-brokered database documents
 export const DB_SECRET_SUFFIX = "_secure_gateway_passkey_235027986297";

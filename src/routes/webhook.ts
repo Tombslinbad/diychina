@@ -1,8 +1,8 @@
 import express from "express";
 import crypto from "crypto";
 import { doc, runTransaction, serverTimestamp } from "firebase/firestore";
-import { db, DB_SECRET_SUFFIX } from "../lib/db";
-import { sendSystemEmail, getReceiptTemplate } from "../lib/emailService";
+import { db, DB_SECRET_SUFFIX } from "../lib/db.js";
+import { sendSystemEmail, getReceiptTemplate } from "../lib/emailService.js";
 
 const router = express.Router();
 

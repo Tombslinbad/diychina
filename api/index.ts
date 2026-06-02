@@ -8,13 +8,13 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
-import { db, DB_SECRET_SUFFIX, closeDb } from "../src/lib/db";
+import { db, DB_SECRET_SUFFIX, closeDb } from "../src/lib/db.js";
 import { doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
-import { UNIVERSITIES } from "../src/universitiesData";
-import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData";
-import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData";
-import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "../src/lib/emailService";
-import webhookRouter from "../src/routes/webhook";
+import { UNIVERSITIES } from "../src/universitiesData.js";
+import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData.js";
+import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData.js";
+import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "../src/lib/emailService.js";
+import webhookRouter from "../src/routes/webhook.js";
 
 const app = express();
 
@@ -22,18 +22,6 @@ const app = express();
 app.use("/api/webhook/paystack", express.raw({ type: "application/json" }), webhookRouter);
 
 app.use(express.json());
-
-// Auto-cleanup database connections on response finish to prevent serverless execution hangs (e.g. Vercel)
-app.use((req, res, next) => {
-  res.on("finish", async () => {
-    try {
-      await closeDb();
-    } catch (e: any) {
-      console.error("[Lifecycle Middleware] Dynamic Firestore cleanup failed:", e?.message || e);
-    }
-  });
-  next();
-});
 
 // Keep legacy webhook mount for backward compatibility in standard JSON-parsed simulations if needed
 app.use("/api/webhook", webhookRouter);
