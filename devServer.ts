@@ -1,4 +1,4 @@
-import app from "./api/index.js";
+import app from "./api/index.ts";
 import path from "path";
 import express from "express";
 
@@ -32,3 +32,6 @@ async function startServer() {
 }
 
 startServer();
+
+export { app };
+export default app;
