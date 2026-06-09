@@ -52,7 +52,7 @@ interface CscaStore {
   // Actions
   setCscaSubject: (subject: any) => void;
   setCscaQuestions: (questions: CscaQuestion[]) => void;
-  startTest: (subject: string, questions: CscaQuestion[]) => void;
+  startTest: (subject: string, questions: CscaQuestion[], durationSec?: number) => void;
   selectAnswer: (questionId: string, answerLetter: string) => void;
   tickTimer: () => { remaining: number; autoSubmit: boolean };
   submitTest: (email: string) => Promise<{ success: boolean; data?: any; error?: string }>;
@@ -80,8 +80,7 @@ export const useCscaStore = create<CscaStore>((set, get) => ({
   setCscaSubject: (subject) => set({ cscaSubject: subject }),
   setCscaQuestions: (questions) => set({ cscaQuestions: questions }),
 
-  startTest: (subject, questions) => {
-    const durationSec = 1200; // 20 minutes limit
+  startTest: (subject, questions, durationSec = 1200) => {
     const nowRef = Date.now();
     const targetTime = nowRef + durationSec * 1000;
 

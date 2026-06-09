@@ -17,6 +17,7 @@ import {
   Clipboard,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Copy,
   RefreshCw,
   Send,
@@ -34,7 +35,8 @@ import {
   Check,
   BookOpen,
   Calendar,
-  Menu
+  Menu,
+  AlertTriangle
 } from "lucide-react";
 import { UNIVERSITIES, University } from "./universitiesData";
 import { Tabs, ChatMessage } from "./types";
@@ -161,13 +163,18 @@ export default function App() {
     tickTimer: tickCscaTimer,
     submitTest: submitCscaTest,
     restoreState: restoreCscaState,
-    trackQuestionSeconds
+    trackQuestionSeconds,
+    resetStore
   } = useCscaStore();
 
   const [cscaLoading, setCscaLoading] = useState(false);
   const [cscaShowExplanations, setCscaShowExplanations] = useState<Record<string, boolean>>({});
   const [cscaShowComplianceGuide, setCscaShowComplianceGuide] = useState(false);
   const [cscaHistory, setCscaHistory] = useState<any[]>([]);
+  const [cscaQuestionsLimit, setCscaQuestionsLimit] = useState<number>(10);
+  const [activeQuestionIdx, setActiveQuestionIdx] = useState<number>(0);
+  const [cscaFlaggedAnswers, setCscaFlaggedAnswers] = useState<Record<string, boolean>>({});
+  const [cscaShowSubmitConfirm, setCscaShowSubmitConfirm] = useState(false);
   
   const [languageSchools, setLanguageSchools] = useState<any[]>(LANGUAGE_INSTITUTES);
   const [langSchoolLoading, setLangSchoolLoading] = useState(false);
@@ -324,9 +331,17 @@ export default function App() {
   };
 
   const handleStartCscaTest = (subject: "math" | "physics" | "chemistry" | "professional_chinese" = cscaSubject as any) => {
-    const questions = generateCSCAQuestions(subject, 10); // Generates 10 reshuffled sample questions
-    startCscaTest(subject, questions as any);
-    addDevLog(`CSCA CBT ${subject.toUpperCase()} 20-Minute Exam started.`);
+    const limit = cscaQuestionsLimit;
+    const questions = generateCSCAQuestions(subject, limit);
+    const durationSeconds = limit * 120; // 120 seconds (2 minutes) per question
+    
+    // Reset CBT navigation and review flagging states
+    setActiveQuestionIdx(0);
+    setCscaFlaggedAnswers({});
+    
+    // Start active state
+    startCscaTest(subject, questions as any, durationSeconds);
+    addDevLog(`CSCA CBT ${subject.toUpperCase()} ${Math.round(durationSeconds / 60)}-Minute Exam started with ${limit} questions.`);
   };
 
   const handleSelectAnswer = (questionId: string, answerLetter: string) => {
@@ -2067,7 +2082,7 @@ export default function App() {
                   </motion.div>
                 )}
 
-                {/* TAB 5: CSCA CBT EXAM CENTER */}
+                 {/* TAB 5: CSCA CBT EXAM CENTER */}
                 {activeTab === Tabs.CSCA_CBT && (
                   <motion.div
                     key="tab-csca-cbt"
@@ -2078,9 +2093,9 @@ export default function App() {
                     className="grid grid-cols-1 lg:grid-cols-12 gap-6"
                   >
                     {/* Left Panel: Examination Interface */}
-                    <div className="lg:col-span-7 space-y-6">
+                    <div className="lg:col-span-7 xl:col-span-8 space-y-6">
                       <div className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>
                         
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 border-b border-slate-800 pb-4">
                           <div>
@@ -2089,150 +2104,285 @@ export default function App() {
                               2026 CSCA CBT Mock Center
                             </h2>
                             <p className="text-[11px] text-slate-400 mt-1">
-                              Mandatory for the 202 China Scholarship Council intake. Practice with simulated science, math & language questions. Over 200 items in bank.
+                              Mandatory for the 2026 China Scholarship Council intake. Interactive simulated science, math & language questions. Over 200 items in bank.
                             </p>
                           </div>
                           
-                          {cscaActiveTest ? (
+                          {cscaActiveTest && (
                             <div className="flex items-center gap-2">
                               <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold animate-pulse ${
                                 cscaTimeRemaining < 180 ? "bg-red-500/20 text-red-400 border border-red-500/30" : "bg-amber-500/10 text-amber-500 border border-amber-500/30"
                               }`}>
-                                <Clock className="h-3.5 w-3.5" />
+                                <Clock className="h-3.5 w-3.5 text-amber-500" />
                                 {formatTime(cscaTimeRemaining)}
                               </span>
                               <button
-                                onClick={() => handleCscaSubmit(false)}
-                                className="bg-red-650 bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition select-none cursor-pointer"
+                                type="button"
+                                onClick={() => setCscaShowSubmitConfirm(true)}
+                                className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition select-none cursor-pointer"
                               >
                                 Submit Exam
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <select 
-                                value={cscaSubject} 
-                                onChange={(e: any) => setCscaSubject(e.target.value)}
-                                className="bg-slate-950 border border-slate-850 rounded-lg text-xs text-slate-303 text-slate-300 px-2 py-1.5 focus:outline-none"
-                              >
-                                <option value="math">Mathematics Syllabus</option>
-                                <option value="physics">Physics Engine Fundamentals</option>
-                                <option value="chemistry">Chemistry Compounds</option>
-                                <option value="professional_chinese">Professional Chinese</option>
-                              </select>
-                              <button
-                                onClick={() => handleStartCscaTest(cscaSubject as any)}
-                                className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 transition uppercase tracking-wider shrink-0 cursor-pointer"
-                              >
-                                <Sparkles className="h-3.5 w-3.5" />
-                                Launch Test
                               </button>
                             </div>
                           )}
                         </div>
 
-                        {/* Quiz Layout */}
+                        {/* CBT VIEW CONTROLLER */}
                         {!cscaActiveTest && !cscaTestSubmitted ? (
-                          <div className="space-y-4 py-8 text-center font-sans">
-                            <div className="bg-slate-900/60 rounded-2xl p-6 border border-slate-800 text-center space-y-4 max-w-lg mx-auto">
-                              <div className="h-12 w-12 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto">
+                          /* CONFIGURATION & LANDING LAUNCHPAD */
+                          <div className="space-y-6 py-4 font-sans max-w-xl mx-auto">
+                            <div className="bg-slate-900/60 rounded-2xl p-6 border border-slate-800 text-center space-y-4">
+                              <div className="h-12 w-12 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <GraduationCap className="h-6 w-6 text-amber-500" />
                               </div>
+                              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Configure Practice Exam</h3>
                               <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                                The newly mandated CSCA assessment tests mathematical, physics, chemistry, and specialized language syllabus. Take our highly realistic, 10-question reshuffled sample tests to index your scoring potential.
+                                Calibrate your computer-based test parameters below. The simulator serves reshuffled high-realism items corresponding directly to the newly certified 2026 CSCA intake syllabus.
                               </p>
-                              <div className="grid grid-cols-2 gap-3 text-center">
-                                <div className="bg-[#0B192C] border border-slate-850 p-2.5 rounded-lg">
-                                  <div className="text-[10px] text-slate-500 font-mono">COUNT</div>
-                                  <div className="text-sm font-extrabold text-white">10 Qs</div>
+
+                              <div className="space-y-4 text-left pt-2 border-t border-slate-800">
+                                {/* Subject Selector */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">1. Select Syllabus Category</label>
+                                  <select 
+                                    value={cscaSubject} 
+                                    onChange={(e: any) => setCscaSubject(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 px-3 py-2.5 focus:outline-none focus:border-amber-500/50"
+                                  >
+                                    <option value="math">Mathematics Syllabus (Sets, Quadratic, Geometry, Vectors)</option>
+                                    <option value="physics">Physics Engine Fundamentals (Kinematics, Circuits, Wave Optics)</option>
+                                    <option value="chemistry">Chemistry Compounds (Stoichiometry, Redox, pH Scales)</option>
+                                    <option value="professional_chinese">Professional Chinese (Grammar, Logistics, Trade negotiation)</option>
+                                  </select>
                                 </div>
-                                <div className="bg-[#0B192C] border border-slate-850 p-2.5 rounded-lg">
-                                  <div className="text-[10px] text-slate-500 font-mono">LIMIT</div>
-                                  <div className="text-sm font-extrabold text-white">10 Mins</div>
+
+                                {/* Timer / Duration & Question Limit selector side-by-side */}
+                                <div className="grid grid-cols-2 gap-4 pt-1">
+                                  <div className="space-y-1.5">
+                                    <label className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">2. Set Number of Questions</label>
+                                    <select 
+                                      value={cscaQuestionsLimit} 
+                                      onChange={(e) => setCscaQuestionsLimit(Number(e.target.value))}
+                                      className="w-full bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 px-3 py-2.5 focus:outline-none focus:border-amber-500/50"
+                                    >
+                                      <option value={5}>5 Questions (Rapid Drill)</option>
+                                      <option value={10}>10 Questions (Standard Intake)</option>
+                                      <option value={15}>15 Questions (Thorough Review)</option>
+                                      <option value={20}>20 Questions (Marathon Drill)</option>
+                                    </select>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    <label className="text-[10px] uppercase tracking-widest font-mono text-slate-400 font-bold">3. Calculated Time Limit</label>
+                                    <div className="w-full bg-slate-950/60 border border-slate-850 rounded-lg text-xs text-[#03C988] font-bold px-3 py-2.5 flex items-center gap-1.5 header-glass">
+                                      <Clock className="h-3.5 w-3.5 text-[#03C988]" />
+                                      {cscaQuestionsLimit * 2} Minutes ({cscaQuestionsLimit * 120} Secs)
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="bg-[#040c1a] border border-slate-850 p-3 rounded-lg text-[10px] text-slate-500 leading-normal font-sans">
+                                  📌 <strong>Nigerian Candidate Directive:</strong> Answers are securely saved as you navigate through items. Past results are logged into your admissions history panel on the right.
                                 </div>
                               </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleStartCscaTest(cscaSubject as any)}
+                                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs py-3.5 rounded-xl flex items-center justify-center gap-2 transition uppercase tracking-wider select-none cursor-pointer mt-4"
+                              >
+                                <Sparkles className="h-4 w-4" />
+                                Start CBT Practice Session
+                              </button>
                             </div>
                           </div>
                         ) : cscaActiveTest ? (
-                          <div className="space-y-6 max-h-[480px] overflow-y-auto pr-2">
-                            {cscaQuestions.map((q, idx) => {
+                          /* STANDARD ONE-QUESTION-AT-A-TIME CBT WRAPPER */
+                          <div className="space-y-6">
+                            {(() => {
+                              const q = cscaQuestions[activeQuestionIdx];
+                              if (!q) return (
+                                <div className="text-center py-8 text-xs text-slate-400">
+                                  Constructing specialized test items... Please wait.
+                                </div>
+                              );
+
                               const selectedOption = cscaSelectedAnswers[q.questionId];
+                              const isFlagged = !cscaFlaggedAnswers ? false : !!cscaFlaggedAnswers[q.questionId];
+
                               return (
-                                <div key={q.questionId} className="bg-slate-900/40 border border-slate-800 rounded-xl p-4 space-y-3 transition hover:border-slate-755">
-                                  <div className="flex justify-between items-start gap-2">
-                                    <span className="bg-slate-800 text-slate-300 font-mono text-[10px] px-2 py-0.5 rounded-md">
-                                      Question {idx + 1} of {cscaQuestions.length}
-                                    </span>
-                                    <span className="text-[9px] font-mono text-slate-505 text-slate-500 uppercase">{cscaSubject.toUpperCase()} INDEX</span>
+                                <div className="space-y-5">
+                                  {/* Item Header bar */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                                    <div className="flex items-center gap-2">
+                                      <span className="bg-amber-500 text-slate-950 font-mono text-[10px] font-extrabold px-2.5 py-1 rounded-md">
+                                        ITEM {activeQuestionIdx + 1} OF {cscaQuestions.length}
+                                      </span>
+                                      <span className="bg-[#0B192C] border border-slate-800 text-[10px] font-mono text-slate-400 px-2.5 py-1 rounded-md uppercase tracking-wider font-semibold">
+                                        {cscaSubject.replaceAll("_", " ").toUpperCase()} INDEX
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCscaFlaggedAnswers(prev => ({
+                                            ...prev,
+                                            [q.questionId]: !isFlagged
+                                          }));
+                                          addDevLog(`Question ${activeQuestionIdx + 1} ${!isFlagged ? "flagged for review" : "unflagged"}.`);
+                                        }}
+                                        className={`px-3 py-1 text-[11px] rounded transition select-none cursor-pointer flex items-center gap-1 border ${
+                                          isFlagged 
+                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                                            : "bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-400 hover:border-slate-800"
+                                        }`}
+                                      >
+                                        <Flag className={`h-3 w-3 ${isFlagged ? "fill-amber-400" : ""}`} />
+                                        {isFlagged ? "Flagged for Review" : "Flag for Review"}
+                                      </button>
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-white leading-relaxed font-semibold">
-                                    {q.questionText}
-                                  </p>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 font-sans">
+
+                                  {/* Stem Content */}
+                                  <div className="p-4 bg-slate-950/20 border border-slate-850/60 rounded-xl space-y-2">
+                                    <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500">Academic Problem Statement:</span>
+                                    <p className="text-sm text-white leading-relaxed font-semibold font-sans">
+                                      {q.questionText}
+                                    </p>
+                                  </div>
+
+                                  {/* Option Buttons */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                                     {q.options.map((opt: string) => {
                                       const letter = opt.substring(0, 1);
                                       const isSelected = selectedOption === letter;
                                       return (
                                         <button
                                           key={opt}
+                                          type="button"
                                           onClick={() => handleSelectAnswer(q.questionId, letter)}
-                                          className={`text-left p-2.5 rounded-lg text-xs font-semibold border transition duration-150 cursor-pointer ${
-                                            isSelected
-                                              ? "bg-amber-500/10 border-amber-500/50 text-amber-305 text-amber-300 shadow"
-                                              : "bg-slate-950/40 border-slate-850 text-slate-300 hover:bg-slate-850/30"
+                                          className={`text-left p-3.5 rounded-xl text-xs font-semibold border transition duration-150 cursor-pointer flex items-start gap-3 select-none ${
+                                            isSelected 
+                                              ? "bg-amber-500/10 border-amber-500 text-amber-300 shadow-md ring-1 ring-amber-500/20" 
+                                              : "bg-[#040c1a] border-slate-850 text-slate-300 hover:bg-slate-850/30 hover:border-slate-800"
                                           }`}
                                         >
-                                          {opt}
+                                          <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                            isSelected ? "bg-amber-505 bg-amber-500 text-slate-950" : "bg-slate-900 text-slate-500"
+                                          }`}>
+                                            {letter}
+                                          </span>
+                                          <span className="leading-normal pt-0.5">{opt.substring(3)}</span>
                                         </button>
                                       );
                                     })}
                                   </div>
+
+                                  {/* Interactive Bottom Console Navigator */}
+                                  <div className="flex items-center justify-between pt-4 border-t border-slate-850 mt-6 md:mt-8">
+                                    <button
+                                      type="button"
+                                      disabled={activeQuestionIdx === 0}
+                                      onClick={() => setActiveQuestionIdx(prev => prev - 1)}
+                                      className="bg-slate-900 border border-slate-800 hover:bg-slate-850 disabled:opacity-30 disabled:pointer-events-none text-slate-300 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer select-none font-sans"
+                                    >
+                                      <ChevronLeft className="h-4 w-4" />
+                                      Previous Question
+                                    </button>
+
+                                    <div className="flex gap-2">
+                                      {activeQuestionIdx < cscaQuestions.length - 1 ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => setActiveQuestionIdx(prev => prev + 1)}
+                                          className="bg-slate-900 border border-slate-800 hover:bg-slate-850 text-white font-bold text-xs px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer select-none font-sans"
+                                        >
+                                          Next Question
+                                          <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => setCscaShowSubmitConfirm(true)}
+                                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-6 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer select-none font-sans animate-pulse"
+                                        >
+                                          <CheckCircle className="h-4 w-4" />
+                                          Finish & Submit Exam
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               );
-                            })}
-                            <div className="flex justify-end pt-2 border-t border-slate-850">
-                              <button
-                                onClick={() => handleCscaSubmit(false)}
-                                className="bg-amber-500 hover:bg-amber-401 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition cursor-pointer"
-                              >
-                                Submit Exam
-                              </button>
-                            </div>
+                            })()}
                           </div>
                         ) : (
+                          /* COMPLETED EXAM REPORT & STEP SOLUTIONS */
                           <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
-                            <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 text-center space-y-3">
-                              <p className="text-xs font-mono text-amber-500 uppercase tracking-wider">Attempt Completed</p>
-                              <div className="text-3xl font-extrabold text-white">
-                                Score: <span className="text-[#03C988]">{cscaLatestScore}</span> / {cscaQuestions.length}
+                            <div className="bg-slate-900 rounded-xl p-5 border border-slate-800 text-center space-y-4">
+                              <p className="text-xs font-mono text-amber-500 uppercase tracking-widest font-bold">Intake Assessment Concluded</p>
+                              
+                              <div className="flex items-center justify-center gap-4 py-2 max-w-xs mx-auto">
+                                <div className="text-center bg-[#0B192C] border border-slate-800 px-4 py-2.5 rounded-xl flex-1">
+                                  <div className="text-[9px] font-mono text-slate-500">RAW SCORE</div>
+                                  <div className="text-2xl font-black text-[#03C988] mt-0.5">
+                                    {cscaLatestScore} <span className="text-xs text-slate-500">/ {cscaQuestions.length}</span>
+                                  </div>
+                                </div>
+                                <div className="text-center bg-[#0B192C] border border-slate-800 px-4 py-2.5 rounded-xl flex-1">
+                                  <div className="text-[9px] font-mono text-slate-500">PERCENTAGE</div>
+                                  <div className="text-2xl font-black text-amber-400 mt-0.5">
+                                    {Math.round((Number(cscaLatestScore) / cscaQuestions.length) * 100)}%
+                                  </div>
+                                </div>
                               </div>
-                              <p className="text-[11px] text-slate-400 font-sans">
-                                Results successfully stored in local database. Read the solutions decomposition provided below.
+
+                              <p className="text-[11px] text-slate-400 leading-normal font-sans px-4">
+                                Score captures have been committed. Review the complete answers decomposition list below.
                               </p>
-                              <button
-                                onClick={() => handleStartCscaTest(cscaSubject as any)}
-                                className="bg-slate-800 hover:bg-slate-755 text-white border border-slate-705 text-xs font-semibold px-4 py-2 rounded-xl transition inline-flex items-center gap-1.5 cursor-pointer font-sans"
-                              >
-                                <RefreshCw className="h-3.5 w-3.5" /> Start New Practice
-                              </button>
+
+                              <div className="flex justify-center gap-3 pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // Cleanly reset Zustand Store and go back to configure pane
+                                    resetStore();
+                                  }}
+                                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer font-sans select-none"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" /> Start New Practice
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    resetStore();
+                                  }}
+                                  className="bg-slate-800 hover:bg-slate-755 text-white border border-slate-700 text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer font-sans select-none"
+                                >
+                                  Back to Panel Config
+                                </button>
+                              </div>
                             </div>
 
                             <div className="space-y-4">
-                              <h3 className="text-xs font-bold text-white uppercase tracking-wider pl-1 font-display">Explanations & Solution Decompositions</h3>
+                              <h3 className="text-xs font-bold text-white uppercase tracking-wider pl-1 font-display">Step-by-Step Solution Decompositions</h3>
                               {cscaQuestions.map((q, idx) => {
                                 const userAns = cscaSelectedAnswers[q.questionId];
-                                const isCorrect = userAns === q.correctOption;
+                                const isCorrect = (userAns || "").trim().toUpperCase() === q.correctOption.trim().toUpperCase();
                                 const showExpl = !!cscaShowExplanations[q.questionId];
                                 return (
                                   <div key={q.questionId} className={`p-4 rounded-xl border ${
-                                    isCorrect ? "bg-emerald-500/5 border-emerald-950" : "bg-rose-500/5 border-rose-950"
+                                    isCorrect ? "bg-emerald-500/5 border-emerald-950/80" : "bg-rose-500/5 border-rose-950/85"
                                   }`}>
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-[10px] font-mono text-slate-500">Q{idx + 1}</span>
+                                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-900/40">
+                                      <span className="text-[10px] font-mono text-slate-500">Question #{idx + 1} info</span>
                                       <div className="flex items-center gap-1.5">
-                                        <span className="text-xs font-mono text-slate-400">Correct: {q.correctOption}</span>
+                                        <span className="text-[11px] font-mono text-slate-400">Correct: {q.correctOption}</span>
                                         <span className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded ${
-                                          isCorrect ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                                          isCorrect ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/15 text-rose-400 border border-rose-500/20"
                                         }`}>
                                           {isCorrect ? "PASSED" : `YOURS: ${userAns || "None"}`}
                                         </span>
@@ -2241,16 +2391,17 @@ export default function App() {
                                     <p className="text-xs text-white font-semibold mb-3 leading-relaxed font-sans">{q.questionText}</p>
                                     
                                     <button
+                                      type="button"
                                       onClick={() => setCscaShowExplanations(prev => ({ ...prev, [q.questionId]: !showExpl }))}
-                                      className="text-[11px] text-amber-500 hover:text-[#03C988] font-semibold flex items-center gap-1 transition-all cursor-pointer font-mono"
+                                      className="text-[11px] text-amber-500 hover:text-emerald-400 font-semibold flex items-center gap-1 transition-all cursor-pointer font-mono"
                                     >
-                                      {showExpl ? "Hide Steps" : "View Step-by-Step Mathematical Decomposition"} 
+                                      {showExpl ? "Hide Solution Breakdown" : "View Step-by-Step Mathematical Decomposition"} 
                                       {showExpl ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                                     </button>
 
                                     {showExpl && (
                                       <div className="mt-3 pt-3 border-t border-slate-900 text-slate-300 text-xs leading-relaxed space-y-2 bg-[#0B192C]/50 p-3 rounded-lg border border-slate-800">
-                                        <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold font-mono">Lao Shi Mathematical Breakdown:</div>
+                                        <div className="text-[9px] font-mono text-slate-500 uppercase tracking-widest font-bold font-mono">Expert Solution Method:</div>
                                         <p className="whitespace-pre-line text-xs font-mono text-slate-300 leading-normal">{q.explanation}</p>
                                       </div>
                                     )}
@@ -2263,122 +2414,206 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Right Panel: Performance trends & proctoring guide */}
-                    <div className="lg:col-span-12 xl:col-span-5 space-y-6">
+                    {/* Right Panel: Side indicators / Navigation Console or Trends History */}
+                    <div className="lg:col-span-5 space-y-6">
                       
-                      {/* Trend Graph */}
-                      <div className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl">
-                        <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-display">
-                          <TrendingUp className="h-4 w-4 text-[#03C988]" />
-                          CSCA Performance History Trends
-                        </h3>
-                        <p className="text-xs text-slate-400 mb-4 leading-normal font-sans">
-                          Tracking progress across practice mock scores recorded in your secure Firestore portal.
-                        </p>
-
-                        {cscaHistory.length === 0 ? (
-                          <div className="bg-slate-900/40 border border-slate-850 p-6 rounded-xl text-center">
-                            <p className="text-xs text-slate-400 font-sans">
-                              No mock attempt records inside database yet. Click **Launch Test** to index scoring trends.
+                      {cscaActiveTest ? (
+                        /* CBT ACTIVE GRID PERSISTENT CONSOLE PANEL */
+                        <div className="bg-[#0B192C] border border-slate-800 p-5 rounded-2xl space-y-5">
+                          <div className="border-b border-slate-800 pb-3">
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2 font-display">
+                              <Sparkles className="h-4.5 w-4.5 text-amber-500" />
+                              CBT Exam Navigation Console
+                            </h3>
+                            <p className="text-[11px] text-slate-400 mt-1 leading-normal font-sans">
+                              Jump instantly to any item index. Unanswered questions are logged dry until selected.
                             </p>
                           </div>
-                        ) : (
-                          <div className="space-y-4 font-sans">
-                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-850">
-                              <span className="text-[9px] font-mono text-slate-500 uppercase block mb-2 font-display">CSCA Score Progression Trend (%)</span>
-                              <div className="h-32 w-full flex items-end">
-                                <svg className="w-full h-full" viewBox="0 0 300 100" preserveAspectRatio="none">
-                                  <line x1="0" y1="10" x2="300" y2="10" stroke="#1e293b" strokeDasharray="3,3" />
-                                  <line x1="0" y1="50" x2="300" y2="50" stroke="#1e293b" strokeDasharray="3,3" />
-                                  <line x1="0" y1="90" x2="300" y2="90" stroke="#1e293b" strokeDasharray="3,3" />
 
-                                  {cscaHistory.length > 1 ? (
-                                    <path
-                                      d={cscaHistory.reduce((acc, curr, idx) => {
-                                        const x = (idx / (cscaHistory.length - 1)) * 260 + 20;
-                                        const y = 90 - (curr.percentage / 100) * 70;
-                                        return acc + `${idx === 0 ? "M" : "L"} ${x} ${y}`;
-                                      }, "")}
-                                      fill="none"
-                                      stroke="#03C988"
-                                      strokeWidth="2.5"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  ) : null}
+                          {/* Interactive Number grid */}
+                          <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 gap-2.5">
+                            {cscaQuestions.map((q, idx) => {
+                              const ans = cscaSelectedAnswers[q.questionId];
+                              const isCurrent = activeQuestionIdx === idx;
+                              const isFlagged = !cscaFlaggedAnswers ? false : !!cscaFlaggedAnswers[q.questionId];
+                              const isAnswered = !!ans;
 
-                                  {cscaHistory.map((curr, idx) => {
-                                    const x = cscaHistory.length > 1 ? (idx / (cscaHistory.length - 1)) * 260 + 20 : 150;
-                                    const y = 90 - (curr.percentage / 100) * 70;
-                                    return (
-                                      <g key={curr.attemptId}>
-                                        <circle cx={x} cy={y} r="4.5" fill="#03C988" stroke="#0B192C" strokeWidth="1.5" />
-                                        <text x={x} y={y - 8} fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
-                                          {curr.score}/{curr.totalQuestions}
-                                        </text>
-                                      </g>
-                                    );
-                                  })}
-                                </svg>
+                              let bgStyle = "bg-slate-950 border-slate-850 text-slate-500";
+                              if (isCurrent) {
+                                bgStyle = "bg-amber-500 border-amber-400 text-slate-950 font-bold ring-2 ring-amber-500/30";
+                              } else if (isFlagged) {
+                                bgStyle = "bg-amber-500/10 border-amber-500/40 text-amber-400 font-bold";
+                              } else if (isAnswered) {
+                                bgStyle = "bg-emerald-500/10 border-emerald-500/30 text-[#03C988] font-bold";
+                              }
+
+                              return (
+                                <button
+                                  key={q.questionId}
+                                  type="button"
+                                  onClick={() => setActiveQuestionIdx(idx)}
+                                  className={`aspect-square rounded-xl border text-center flex flex-col items-center justify-center text-xs transition duration-150 cursor-pointer select-none relative ${bgStyle}`}
+                                >
+                                  <span>{idx + 1}</span>
+                                  {isFlagged && !isCurrent && (
+                                    <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Metric Legend */}
+                          <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-850 text-[10px] space-y-2 text-slate-400 font-sans">
+                            <div className="font-mono text-[9px] uppercase tracking-wider text-slate-500 font-bold">CONSOLE STATUS LEGEND</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded bg-amber-500 inline-block pointer-events-none"></span>
+                                <span>Active Selection</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded bg-[#03C988]/20 border border-[#03C988]/30 inline-block pointer-events-none"></span>
+                                <span>Answered</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded bg-amber-550/10 border border-amber-500/20 inline-block pointer-events-none text-amber-500 flex items-center justify-center text-[8px]">🚩</span>
+                                <span>Review Flagged</span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded bg-slate-950 border border-slate-850 inline-block pointer-events-none"></span>
+                                <span>Unanswered</span>
                               </div>
                             </div>
+                          </div>
 
-                            <div className="max-h-40 overflow-y-auto space-y-2 pr-1 text-xs">
-                              {cscaHistory.map((item, idx) => (
-                                <div key={item.attemptId} className="bg-slate-900/40 border border-slate-850 p-3 rounded-lg flex justify-between items-center">
-                                  <div>
-                                    <div className="font-semibold text-white">Attempt #{idx + 1} ({item.score}/{item.totalQuestions})</div>
-                                    <div className="text-[10px] text-slate-500 font-mono">{new Date(item.timestamp).toLocaleDateString()}</div>
-                                  </div>
-                                  <div className="text-right font-sans">
-                                    <div className="font-mono text-[#03C988] font-bold">{item.percentage}%</div>
-                                    <div className="text-[10px] text-slate-500 font-mono">Subject: {item.subject || "math"}</div>
-                                  </div>
-                                </div>
-                              ))}
+                          {/* Digital Guard list */}
+                          <div className="space-y-2 border-t border-slate-850 pt-3 text-[11px] text-slate-400 leading-normal font-sans">
+                            <div className="flex gap-2 items-start text-[10px] text-slate-500">
+                              <ShieldCheck className="h-4 w-4 text-[#03C988] shrink-0" />
+                              <div>
+                                <strong>Interactive Session Safeguard Active.</strong> All inputs are stored securely dynamically. Standard timeout auto-submits answers.
+                              </div>
                             </div>
                           </div>
-                        )}
-                      </div>
-
-                      {/* Compliance Guide */}
-                      <div className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl">
-                        <button
-                          onClick={() => setCscaShowComplianceGuide(!cscaShowComplianceGuide)}
-                          className="w-full flex items-center justify-between text-left cursor-pointer"
-                        >
-                          <h3 className="text-sm font-bold text-white flex items-center gap-2 font-display">
-                            <ShieldCheck className="h-4.5 w-4.5 text-[#03C988]" />
-                            Home-Based Proctoring Regulations
+                        </div>
+                      ) : (
+                        /* PERFORMANCE HISTORY TREND GRAPH */
+                        <div className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl">
+                          <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2 font-display">
+                            <TrendingUp className="h-4 w-4 text-[#03C988]" />
+                            CSCA Performance History Trends
                           </h3>
-                          <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${cscaShowComplianceGuide ? "rotate-180" : ""}`} />
-                        </button>
-                        
-                        {cscaShowComplianceGuide && (
-                          <div className="mt-4 pt-4 border-t border-slate-800 space-y-3.5 text-xs text-slate-300 leading-relaxed font-sans">
-                            <p className="font-mono bg-red-500/10 text-red-400 p-3 rounded-lg border border-red-500/10 text-[11px] leading-relaxed">
-                              ⚠️ <strong>Critical Guideline:</strong> Under the 2026 regulations, home-based proctoring anomalies trigger an automatic, immediate 2-year system ban.
-                            </p>
-                            
-                            <div className="space-y-3">
-                              <div className="flex gap-2 items-start">
-                                <span className="bg-amber-500/10 text-amber-500 font-mono h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[10px]">01</span>
-                                <div>
-                                  <strong className="text-slate-100 block text-xs">Strict Windows OS Platform Preference</strong>
-                                  Proctoring tracking modules interact directly with file security systems. Candidates are heavily advised to use standard Windows 10/11 machines over MacOS.
+                          <p className="text-xs text-slate-400 mb-4 leading-normal font-sans">
+                            Tracking progress across practice mock scores recorded in your secure cloud-connected database.
+                          </p>
+
+                          {cscaHistory.length === 0 ? (
+                            <div className="bg-slate-900/40 border border-slate-850 p-6 rounded-xl text-center">
+                              <p className="text-xs text-slate-400 font-sans">
+                                No mock attempt records inside database yet. Run a category above and hit **Launch Test** to index performance curves.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 font-sans">
+                              <div className="bg-slate-950 p-4 rounded-xl border border-slate-850">
+                                <span className="text-[9px] font-mono text-slate-500 uppercase block mb-2 font-display">CSCA Score Progression Trend (%)</span>
+                                <div className="h-32 w-full flex items-end">
+                                  <svg className="w-full h-full" viewBox="0 0 300 100" preserveAspectRatio="none">
+                                    <line x1="0" y1="10" x2="300" y2="10" stroke="#1e293b" strokeDasharray="3,3" />
+                                    <line x1="0" y1="50" x2="300" y2="50" stroke="#1e293b" strokeDasharray="3,3" />
+                                    <line x1="0" y1="90" x2="300" y2="90" stroke="#1e293b" strokeDasharray="3,3" />
+
+                                    {cscaHistory.length > 1 ? (
+                                      <path
+                                        d={cscaHistory.reduce((acc, curr, idx) => {
+                                          const x = (idx / (cscaHistory.length - 1)) * 260 + 20;
+                                          const y = 90 - (curr.percentage / 100) * 70;
+                                          return acc + `${idx === 0 ? "M" : "L"} ${x} ${y}`;
+                                        }, "")}
+                                        fill="none"
+                                        stroke="#03C988"
+                                        strokeWidth="2.5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    ) : null}
+
+                                    {cscaHistory.map((curr, idx) => {
+                                      const x = cscaHistory.length > 1 ? (idx / (cscaHistory.length - 1)) * 260 + 20 : 150;
+                                      const y = 90 - (curr.percentage / 100) * 70;
+                                      return (
+                                        <g key={curr.attemptId}>
+                                          <circle cx={x} cy={y} r="4.5" fill="#03C988" stroke="#0B192C" strokeWidth="1.5" />
+                                          <text x={x} y={y - 8} fill="#ffffff" fontSize="8" fontWeight="bold" textAnchor="middle" fontFamily="monospace">
+                                            {curr.score}/{curr.totalQuestions}
+                                          </text>
+                                        </g>
+                                      );
+                                    })}
+                                  </svg>
                                 </div>
                               </div>
-                              <div className="flex gap-2 items-start">
-                                <span className="bg-amber-500/10 text-amber-500 font-mono h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[10px]">02</span>
-                                <div>
-                                  <strong className="text-slate-100 block text-xs">Dual-Camera Monitoring Protocol</strong>
-                                  A persistent QR code is displayed during the exam. Candidates must stream a live side-profile room overview using their mobile camera while their laptop camera monitors eye-gaze anomalies.
+
+                              <div className="max-h-40 overflow-y-auto space-y-2 pr-1 text-xs">
+                                {cscaHistory.map((item, idx) => (
+                                  <div key={item.attemptId} className="bg-slate-900/40 border border-slate-850 p-3 rounded-lg flex justify-between items-center bg-slate-950/20">
+                                    <div>
+                                      <div className="font-semibold text-white">Attempt #{idx + 1} ({item.score}/{item.totalQuestions})</div>
+                                      <div className="text-[10px] text-slate-500 font-mono">{new Date(item.startedAt || item.timestamp || Date.now()).toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="text-right font-sans">
+                                      <div className="font-mono text-[#03C988] font-bold">{item.percentage}%</div>
+                                      <div className="text-[10px] text-slate-500 font-mono select-none uppercase">Subject: {String(item.subject || "math").replaceAll("_", " ")}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Compliance Regulations (only shown when not inside active test to save screen estate) */}
+                      {!cscaActiveTest && (
+                        <div className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl">
+                          <button
+                            type="button"
+                            onClick={() => setCscaShowComplianceGuide(!cscaShowComplianceGuide)}
+                            className="w-full flex items-center justify-between text-left cursor-pointer select-none"
+                          >
+                            <h3 className="text-sm font-bold text-white flex items-center gap-2 font-display">
+                              <ShieldCheck className="h-4.5 w-4.5 text-[#03C988]" />
+                              Home-Based Proctoring Regulations
+                            </h3>
+                            <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${cscaShowComplianceGuide ? "rotate-180" : ""}`} />
+                          </button>
+                          
+                          {cscaShowComplianceGuide && (
+                            <div className="mt-4 pt-4 border-t border-slate-800 space-y-3.5 text-xs text-slate-300 leading-relaxed font-sans">
+                              <p className="font-mono bg-red-500/10 text-red-400 p-3 rounded-lg border border-red-500/10 text-[11px] leading-relaxed">
+                                ⚠️ <strong>Critical Guideline:</strong> Under the 2026 regulations, home-based proctoring anomalies trigger an automatic, immediate 2-year system ban.
+                              </p>
+                              
+                              <div className="space-y-3">
+                                <div className="flex gap-2 items-start">
+                                  <span className="bg-amber-500/10 text-amber-500 font-mono h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[10px]">01</span>
+                                  <div>
+                                    <strong className="text-slate-100 block text-xs">Strict Windows OS Platform Preference</strong>
+                                    Proctoring tracking modules interact directly with file security systems. Candidates are heavily advised to use standard Windows 10/11 machines over MacOS.
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                  <span className="bg-amber-500/10 text-amber-500 font-mono h-5 w-5 rounded-full shrink-0 flex items-center justify-center text-[10px]">02</span>
+                                  <div>
+                                    <strong className="text-slate-100 block text-xs">Dual-Camera Monitoring Protocol</strong>
+                                    A persistent QR code is displayed during the exam. Candidates must stream a live side-profile room overview using their mobile camera while their laptop camera monitors eye-gaze anomalies.
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
 
                     </div>
                   </motion.div>
@@ -2454,7 +2689,7 @@ export default function App() {
                         
                         {/* Core Exam Simulator Panel */}
                         <div className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl relative overflow-hidden">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl"></div>
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>
                           
                           <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-4">
                             <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -4354,6 +4589,84 @@ export default function App() {
                 >
                   <Check className="h-4 w-4" />
                   I Understand & Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CSCA CUSTOM SUBMISSION CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {cscaShowSubmitConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 p-4 flex justify-center items-center"
+            onClick={() => setCscaShowSubmitConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0B192C] border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl relative overflow-hidden text-center space-y-4"
+            >
+              {/* Decorative glow */}
+              <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div className="h-14 w-14 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                 <AlertTriangle className="h-7 w-7 text-amber-500 animate-bounce" />
+              </div>
+
+              <h3 className="text-base font-bold text-white uppercase tracking-wider font-display">Finish & Submit Exam?</h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-sans px-2">
+                Are you sure you want to conclude your computer-based mock assessment? Once submitted, your scores will be computed and saved to your admissions database.
+              </p>
+
+              {/* Answer Stats Box */}
+              {(() => {
+                const total = cscaQuestions.length;
+                const answered = cscaQuestions.filter(q => cscaSelectedAnswers[q.questionId]).length;
+                const unanswered = total - answered;
+
+                return (
+                  <div className="grid grid-cols-2 gap-3 bg-slate-950/85 p-3 rounded-xl border border-slate-850 text-left">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider text-slate-500 font-mono font-bold">Answered Questions</div>
+                      <div className="text-base font-extrabold text-[#03C988] mt-0.5">{answered} / {total}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider text-slate-500 font-mono font-bold">Unanswered Questions</div>
+                      <div className={`text-base font-extrabold mt-0.5 ${unanswered > 0 ? "text-amber-500 animate-pulse" : "text-slate-400"}`}>
+                        {unanswered} Q{unanswered === 1 ? "" : "s"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setCscaShowSubmitConfirm(false)}
+                  className="flex-1 bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 text-xs font-semibold py-3 rounded-xl transition cursor-pointer select-none font-sans"
+                >
+                  Cancel, Keep Writing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCscaShowSubmitConfirm(false);
+                    handleCscaSubmit(false);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white text-xs font-bold py-3 rounded-xl transition cursor-pointer select-none font-sans flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/30"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Yes, Finish Exam
                 </button>
               </div>
             </motion.div>
