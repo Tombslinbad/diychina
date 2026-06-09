@@ -163,7 +163,10 @@ export async function sendSystemEmail(to: string, subject: string, htmlContent: 
         },
         tls: {
           rejectUnauthorized: false // Prevents common self-signed certificate chain blocker anomalies
-        }
+        },
+        connectionTimeout: 1500, // 1.5 seconds connection timeout max
+        greetingTimeout: 1500,    // 1.5 seconds greeting timeout max
+        socketTimeout: 2000       // 2.0 seconds socket timeout max
       });
 
       await transporter.sendMail({

@@ -1,0 +1,2 @@
+# Prevent Vercel deployment conflict in API folder between JS build artifacts and TypeScript sources
+api/index.js

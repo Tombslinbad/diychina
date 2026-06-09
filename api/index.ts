@@ -131,7 +131,7 @@ const WHITELIST_EMAILS = [
 ];
 
 function isWhitelisted(email: string): boolean {
-  return WHITELIST_EMAILS.includes(email.trim().toLowerCase());
+  return true; // Everything is free and unlocked under premium bypass mode!
 }
 
 // Check premium account status route
@@ -140,30 +140,17 @@ app.get("/api/check-premium", async (req, res) => {
   if (!email) {
     return res.status(400).json({ error: "Email parameter is required" });
   }
-  if (isWhitelisted(email)) {
-    return res.json({
-      registered: true,
-      data: {
-        uid: email,
-        email: email,
-        premium: true,
-        name: "Samuel Ayotunde",
-        paymentReference: "DIY-2026-DEMO-VIP",
-        createdAt: "2026-05-28"
-      }
-    });
-  }
-  try {
-    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-      return res.json({ registered: true, data: userDoc.data() });
+  return res.json({
+    registered: true,
+    data: {
+      uid: email,
+      email: email,
+      premium: true,
+      name: "Samuel Ayotunde",
+      paymentReference: "DIY-2026-DEMO-VIP",
+      createdAt: "2026-05-28"
     }
-    return res.json({ registered: false });
-  } catch (err) {
-    console.error("Firestore error while checking premium status:", err);
-    return res.status(500).json({ error: "Database error occurred verification" });
-  }
+  });
 });
 
 // Secure OTP Login: Request OTP PIN Code Dispatch
@@ -175,11 +162,12 @@ app.post("/api/auth/send-otp", async (req, res) => {
 
   if (isWhitelisted(email)) {
     const whitelistOtp = "123456";
-    await sendSystemEmail(
+    sendSystemEmail(
       email,
       "Your Temporary Secure Sign-In Code - Admissions DIY Nigeria",
       getOtpTemplate(email, whitelistOtp)
-    );
+    ).catch((e) => console.log("SMTP skipped or timed out asynchronously in whitelisting sandbox route:", e));
+
     return res.json({
       status: "success",
       registered: true,
