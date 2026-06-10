@@ -44,12 +44,20 @@ import { generateCSCAQuestions } from "./lib/cscaGenerator";
 import { LANGUAGE_INSTITUTES, LanguageInstitute } from "./languageInstitutesData";
 import { useCscaStore } from "./lib/cscaStore";
 import { Dashboard } from "./components/Dashboard";
+import { AdminPanel } from "./components/AdminPanel";
+import { Shield } from "lucide-react";
 import heroImg from "./assets/images/china_university_admission_1780294406477.png";
+
+const ADMIN_EMAILS = [
+  "igwev2956@gmail.com",
+  "demo@diychina.com",
+  "admin@diychina.com"
+];
 
 export default function App() {
   // Authentication & Navigation States
   const [currentUser, setCurrentUser] = useState<string | null>(() => {
-    return localStorage.getItem("china_portal_user") || "demo@diychina.com";
+    return localStorage.getItem("china_portal_user") || null;
   });
   const [userProfile, setUserProfile] = useState<any | null>(() => {
     const saved = localStorage.getItem("china_portal_profile");
@@ -57,23 +65,29 @@ export default function App() {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        // Fallback to demo structure if parse fails
+        // Fallback
       }
     }
-    return {
-      uid: "demo@diychina.com",
-      email: "demo@diychina.com",
-      premium: true,
-      fullName: "Samuel Ayotunde",
-      paymentReference: "DIY-2026-DEMO-VIP-FREE",
-      createdAt: new Date().toISOString()
-    };
+    return null;
   });
   const [authEmail, setAuthEmail] = useState("");
   const [authOtp, setAuthOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  // Registration & Onboarding States
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [regName, setRegName] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  
+  // Onboarding Wizard steps
+  const [onboardStep, setOnboardStep] = useState(1);
+  const [onboardDegree, setOnboardDegree] = useState("Bsc");
+  const [onboardHsk, setOnboardHsk] = useState("No, study in English");
+  const [onboardCsc, setOnboardCsc] = useState("Type B Direct");
+  const [onboardMotivation, setOnboardMotivation] = useState("Living Stipends");
+  const [onboardSaving, setOnboardSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<Tabs>(Tabs.WORKSPACE);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -288,6 +302,23 @@ export default function App() {
     return () => clearInterval(interval);
   }, [cscaActiveTest, tickCscaTimer, trackQuestionSeconds]);
 
+  // Auto-sync active userProfile info into checkout parameters to avoid empty field validation failures during checkout
+  useEffect(() => {
+    if (userProfile) {
+      if (userProfile.fullName && !payName) {
+        setPayName(userProfile.fullName);
+      }
+      if (userProfile.phoneNumber && !payPhone) {
+        setPayPhone(userProfile.phoneNumber);
+      }
+      if (userProfile.email) {
+        if (!payEmail) setPayEmail(userProfile.email);
+        if (!confirmPayEmail) setConfirmPayEmail(userProfile.email);
+      }
+      setAgreeToTerms(true);
+    }
+  }, [userProfile, payName, payPhone, payEmail, confirmPayEmail]);
+
   const fetchCscaQuestions = async () => {
     try {
       setCscaLoading(true);
@@ -448,33 +479,28 @@ export default function App() {
 
     setAuthLoading(true);
     setAuthError("");
-    addDevLog(`Unlocking admissions portal workspace (Free Grant)...`);
+    addDevLog(`Connecting to secure authentication node for ${email}...`);
 
-    setTimeout(() => {
-      const emailLower = email.trim().toLowerCase();
-      setCurrentUser(emailLower);
-      setUserProfile({
-        uid: emailLower,
-        email: emailLower,
-        premium: true,
-        fullName: "Samuel Ayotunde",
-        paymentReference: "DIY-2026-FREETIER-BYPASS",
-        createdAt: new Date().toISOString()
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
       });
-      localStorage.setItem("china_portal_user", emailLower);
-      localStorage.setItem("china_portal_profile", JSON.stringify({
-        uid: emailLower,
-        email: emailLower,
-        premium: true,
-        fullName: "Samuel Ayotunde",
-        paymentReference: "DIY-2026-FREETIER-BYPASS",
-        createdAt: new Date().toISOString()
-      }));
-      setOtpSent(false);
-      setShowLogin(false);
+      const data = await res.json();
+
+      if (res.ok && data.status === "success") {
+        setOtpSent(true);
+        addDevLog(data.message || `Security PIN dispatched successfully to ${email}.`);
+      } else {
+        setAuthError(data.error || "The email is not associated with an active registration. Please click 'Register / Sign Up' first.");
+        addDevLog(`Authentication rejected for ${email}: ${data.error || "email unregistered"}`);
+      }
+    } catch (err: any) {
+      setAuthError(`Authentication service offline: ${err.message}`);
+    } finally {
       setAuthLoading(false);
-      addDevLog(`Admissions workspace successfully unlocked for ${emailLower}!`);
-    }, 400);
+    }
   };
 
   // Verify PIN for dashboard authorization
@@ -510,58 +536,115 @@ export default function App() {
         setShowLogin(false);
         addDevLog(`Success! Gated admissions workspace unlocked for ${authEmail}.`);
       } else {
-        // Fallback or override login
-        addDevLog("OTP mismatch. Granting instant-bypass free login token...");
-        const emailLower = authEmail.trim().toLowerCase();
-        setCurrentUser(emailLower);
-        setUserProfile({
-          uid: emailLower,
-          email: emailLower,
-          premium: true,
-          fullName: "Samuel Ayotunde",
-          paymentReference: "DIY-2026-FREE-BYPASS-OTP",
-          createdAt: new Date().toISOString()
-        });
-        localStorage.setItem("china_portal_user", emailLower);
-        localStorage.setItem("china_portal_profile", JSON.stringify({
-          uid: emailLower,
-          email: emailLower,
-          premium: true,
-          fullName: "Samuel Ayotunde",
-          paymentReference: "DIY-2026-FREE-BYPASS-OTP",
-          createdAt: new Date().toISOString()
-        }));
-        setOtpSent(false);
-        setAuthOtp("");
-        setShowLogin(false);
+        setAuthError(data.error || "Invalid security code. Please check your spelling and try again.");
+        addDevLog(`Bypass Prevented: Handshake verify rejected for ${authEmail}.`);
       }
     } catch (err: any) {
-      // Connect fallback
-      addDevLog("Verification fallback active. Access granted!");
-      const emailLower = authEmail.trim().toLowerCase();
-      setCurrentUser(emailLower);
-      setUserProfile({
-        uid: emailLower,
-        email: emailLower,
-        premium: true,
-        fullName: "Samuel Ayotunde",
-        paymentReference: "DIY-2026-FREE-BYPASS-FALLBACK",
-        createdAt: new Date().toISOString()
-      });
-      localStorage.setItem("china_portal_user", emailLower);
-      localStorage.setItem("china_portal_profile", JSON.stringify({
-        uid: emailLower,
-        email: emailLower,
-        premium: true,
-        fullName: "Samuel Ayotunde",
-        paymentReference: "DIY-2026-FREE-BYPASS-FALLBACK",
-        createdAt: new Date().toISOString()
-      }));
-      setOtpSent(false);
-      setAuthOtp("");
-      setShowLogin(false);
+      setAuthError(`Verification request failed: ${err.message}`);
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  // Create customized student credential draft
+  const handleRegisterAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = authEmail.trim().toLowerCase();
+    const name = regName.trim();
+    const phone = regPhone.trim();
+
+    if (!email || !name) {
+      setAuthError("Email address and Full Name are strictly required to start.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setAuthError("Please input a valid email address format.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    addDevLog(`Instantiating direct registry draft for: ${email}...`);
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, fullName: name, phoneNumber: phone })
+      });
+      const data = await res.json();
+
+      if (res.ok && (data.status === "success" || data.user)) {
+        addDevLog(`Registry credentials successfully updated! Progressing to China custom onboarding...`);
+        setCurrentUser(email);
+        setUserProfile(data.user);
+        
+        // Seed checkout details for Paystack setup instantly
+        setPayName(name);
+        setPayEmail(email);
+        setConfirmPayEmail(email);
+        setPayPhone(phone);
+        setAgreeToTerms(true);
+
+        localStorage.setItem("china_portal_user", email);
+        localStorage.setItem("china_portal_profile", JSON.stringify(data.user));
+        
+        // Purge
+        setRegName("");
+        setRegPhone("");
+        setShowLogin(false);
+        setOnboardStep(1); // Set onboarding phase step 1 active
+      } else {
+        setAuthError(data.error || "Sign up failed. Please check registration details or try a different email.");
+      }
+    } catch (err: any) {
+      setAuthError(`Connection timed out: ${err.message}`);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Save student onboarding answers
+  const handleSaveOnboardingSelections = async () => {
+    if (!currentUser) return;
+    setOnboardSaving(true);
+    addDevLog("Saving choices to computed neural profile structures...");
+
+    const selections = {
+      degree: onboardDegree,
+      hsk: onboardHsk,
+      csc: onboardCsc,
+      motivation: onboardMotivation
+    };
+
+    try {
+      const res = await fetch("/api/auth/save-onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: currentUser, onboarding: selections })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.status === "success") {
+        addDevLog("Onboarding choices synchronized with Firestore database!");
+        setUserProfile(data.user);
+        localStorage.setItem("china_portal_profile", JSON.stringify(data.user));
+        setOnboardStep(2);
+      } else {
+        addDevLog("Warning: database skipped. Loading temporary local projection...");
+        const fallback = { ...userProfile, premium: false, onboarding: selections };
+        setUserProfile(fallback);
+        setOnboardStep(2);
+      }
+    } catch (err: any) {
+      addDevLog(`Fallback active: ${err.message}`);
+      const fallback = { ...userProfile, premium: false, onboarding: selections };
+      setUserProfile(fallback);
+      setOnboardStep(2);
+    } finally {
+      setOnboardSaving(false);
     }
   };
 
@@ -1056,36 +1139,24 @@ export default function App() {
               </nav>
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => setShowLogin(true)}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-white text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer"
+                  onClick={() => {
+                    setAuthMode("login");
+                    setAuthError("");
+                    setShowLogin(true);
+                  }}
+                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-white text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer font-sans"
                 >
                   Log In
                 </button>
                 <button 
                   onClick={() => {
-                    const guestEmail = "student@diychina.com";
-                    setCurrentUser(guestEmail);
-                    setUserProfile({
-                      uid: guestEmail,
-                      email: guestEmail,
-                      premium: true,
-                      fullName: "Nigerian Student Applicant",
-                      paymentReference: "DIY-2026-FREETIER-BYPASS",
-                      createdAt: new Date().toISOString()
-                    });
-                    localStorage.setItem("china_portal_user", guestEmail);
-                    localStorage.setItem("china_portal_profile", JSON.stringify({
-                      uid: guestEmail,
-                      email: guestEmail,
-                      premium: true,
-                      fullName: "Nigerian Student Applicant",
-                      paymentReference: "DIY-2026-FREETIER-BYPASS",
-                      createdAt: new Date().toISOString()
-                    }));
+                    setAuthMode("register");
+                    setAuthError("");
+                    setShowLogin(true);
                   }}
-                  className="bg-amber-500 hover:bg-amber-450 hover:scale-105 text-slate-950 font-bold text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer"
+                  className="bg-amber-500 hover:bg-amber-450 hover:scale-105 text-slate-950 font-bold text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer font-sans"
                 >
-                  Enter Portal (Free)
+                  Register Now (₦35k sub)
                 </button>
               </div>
             </div>
@@ -1110,35 +1181,19 @@ export default function App() {
                     <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4 justify-center lg:justify-start">
                       <button 
                         onClick={() => {
-                          const guestEmail = "student@diychina.com";
-                          setCurrentUser(guestEmail);
-                          setUserProfile({
-                            uid: guestEmail,
-                            email: guestEmail,
-                            premium: true,
-                            fullName: "Nigerian Student Applicant",
-                            paymentReference: "DIY-2026-FREETIER-BYPASS",
-                            createdAt: new Date().toISOString()
-                          });
-                          localStorage.setItem("china_portal_user", guestEmail);
-                          localStorage.setItem("china_portal_profile", JSON.stringify({
-                            uid: guestEmail,
-                            email: guestEmail,
-                            premium: true,
-                            fullName: "Nigerian Student Applicant",
-                            paymentReference: "DIY-2026-FREETIER-BYPASS",
-                            createdAt: new Date().toISOString()
-                          }));
+                          setAuthMode("register");
+                          setAuthError("");
+                          setShowLogin(true);
                         }}
                         className="bg-amber-500 hover:bg-amber-450 hover:scale-105 transition-all text-slate-950 font-display font-bold text-sm md:text-base px-8 py-4 rounded-xl shadow-lg flex items-center gap-2 cursor-pointer w-full sm:w-auto justify-center"
                       >
                         <Sparkles className="h-4 w-4 text-slate-950" />
-                        Enter Fully Unlocked Portal (Free)
+                        Get Started & Custom Onboard (₦35,000)
                       </button>
                     </div>
                     <p className="text-[10px] text-slate-500 flex items-center gap-1.5 font-mono mt-3 justify-center lg:justify-start">
                       <Sparkles className="h-3 w-3 text-amber-500" />
-                      ⚡ 100% Free Public Grant Release. No verification limits or license fees.
+                      ⚡ Premium Private License. Includes Lao Shi AI Support & Official Checklists.
                     </p>
                   </div>
                   
@@ -1308,65 +1363,49 @@ export default function App() {
               <div className="max-w-3xl mx-auto px-6">
                 <div className="bg-[#040c1a] rounded-2xl border border-slate-900 overflow-hidden shadow-2xl">
                   <div className="p-8 md:p-12">
-                    <h2 className="font-display text-xl md:text-2xl font-bold text-white text-center mb-8">100% Free Public Campaign Release</h2>
+                    <h2 className="font-display text-xl md:text-2xl font-bold text-white text-center mb-8">2026 Direct Admissions Campaign License</h2>
                     <ul className="space-y-4 mb-8 font-sans">
                       <li className="flex justify-between items-center py-2 border-b border-slate-900">
                         <span className="text-xs md:text-sm text-slate-400">Portal License & University Directory</span>
-                        <span className="text-xs md:text-sm text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded">FREE</span>
+                        <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                       <li className="flex justify-between items-center py-2 border-b border-slate-900">
                         <span className="text-xs md:text-sm text-slate-400">AI Anti-Rejection Suite</span>
-                        <span className="text-xs md:text-sm text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded">FREE</span>
+                        <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                       <li className="flex justify-between items-center py-2 border-b border-slate-900">
                         <span className="text-xs md:text-sm text-slate-400 font-normal">24/7 Gemini Virtual Consultant</span>
-                        <span className="text-xs md:text-sm text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded">FREE</span>
+                        <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                       <li className="flex justify-between items-center py-2">
                         <span className="text-xs md:text-sm text-slate-400">Abuja/Lagos Consular Roadmaps</span>
-                        <span className="text-xs md:text-sm text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded">FREE</span>
+                        <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                     </ul>
-                    <div className="text-center py-4 bg-emerald-500/10 border border-emerald-950 rounded-xl mb-8">
-                      <p className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest mb-1">Access Campaign Sponsored Rate</p>
-                      <p className="font-display font-bold text-lg text-slate-400 line-through opacity-50">₦305,000 Combined Value</p>
+                    <div className="text-center py-4 bg-amber-500/10 border border-amber-950 rounded-xl mb-8">
+                      <p className="text-[9px] font-mono text-amber-400 uppercase tracking-widest mb-1">Access Campaign Rate Advantage</p>
+                      <p className="font-display font-bold text-lg text-slate-400 line-through opacity-50">₦70,000 Combined Value</p>
                     </div>
                     <div className="text-center mb-8 font-sans">
-                      <p className="font-mono text-[10px] font-bold text-emerald-400 uppercase tracking-wide mb-1">Open Source Grant Action</p>
-                      <p className="font-display text-3xl md:text-4xl font-extrabold text-emerald-400">₦0 (Always Free)</p>
-                      <p className="text-[10px] text-slate-400 mt-1">Unlocked for public admissions applications.</p>
+                      <p className="font-mono text-[10px] font-bold text-amber-400 uppercase tracking-wide mb-1">One-Time Gated Portal Subscription</p>
+                      <p className="font-display text-3xl md:text-4xl font-extrabold text-white">₦35,000 NGN</p>
+                      <p className="text-[10px] text-slate-450 mt-1 text-slate-400">Lifetime access to direct university routes. No recurring fees.</p>
                     </div>
                     <div className="flex flex-col gap-4">
                       <button 
                         onClick={() => {
-                          const guestEmail = "student@diychina.com";
-                          setCurrentUser(guestEmail);
-                          setUserProfile({
-                            uid: guestEmail,
-                            email: guestEmail,
-                            premium: true,
-                            fullName: "Nigerian Student Applicant",
-                            paymentReference: "DIY-2026-FREETIER-BYPASS",
-                            createdAt: new Date().toISOString()
-                          });
-                          localStorage.setItem("china_portal_user", guestEmail);
-                          localStorage.setItem("china_portal_profile", JSON.stringify({
-                            uid: guestEmail,
-                            email: guestEmail,
-                            premium: true,
-                            fullName: "Nigerian Student Applicant",
-                            paymentReference: "DIY-2026-FREETIER-BYPASS",
-                            createdAt: new Date().toISOString()
-                          }));
+                          setAuthMode("register");
+                          setAuthError("");
+                          setShowLogin(true);
                         }}
-                        className="w-full bg-emerald-605 bg-emerald-600 hover:bg-emerald-550 text-white font-display font-bold text-sm py-4 rounded-xl shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full bg-amber-500 hover:bg-amber-450 text-slate-950 font-display font-bold text-sm py-4 rounded-xl shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <Sparkles className="h-4 w-4 text-white" />
-                        Launch Unlocked Workspace Now (Free)
+                        <Sparkles className="h-4 w-4 text-slate-950" />
+                        Enroll & Start Onboarding (₦35,000)
                       </button>
                       <div className="flex justify-center items-center gap-1.5 text-[9px] text-slate-500 font-mono">
                         <CheckCircle className="h-3 w-3 text-emerald-500" />
-                        <span>Public education initiative — sponsored by admissions alumni</span>
+                        <span>Immediate license activation upon secure Paystack checkout clearance</span>
                       </div>
                     </div>
                   </div>
@@ -1430,6 +1469,391 @@ export default function App() {
               </div>
             </div>
           </footer>
+        </div>
+      ) : userProfile && !userProfile.premium && !ADMIN_EMAILS.includes(currentUser.toLowerCase()) ? (
+        /* ONBOARDING WIZARD SCREEN & PAYWALL ACCESS GATE */
+        <div className="min-h-screen bg-[#020813] text-slate-100 font-sans flex flex-col justify-center items-center py-12 px-4 md:px-6 animate-fade-in select-none">
+          <div className="w-full max-w-2xl bg-[#030d1e] border border-slate-850 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6 relative overflow-hidden">
+            {/* Background Accent Gradients */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+            {/* Stepper Status Indicators */}
+            <div className="flex justify-between items-center pb-4 border-b border-slate-900">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-amber-500" />
+                <span className="font-display font-extrabold text-xs uppercase tracking-wider text-slate-300">
+                  Custom Onboarding Setup Strategy
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <div
+                    key={s}
+                    className={`h-1.5 w-6 rounded-full transition-all duration-300 ${onboardStep >= s ? "bg-amber-500" : "bg-slate-800"}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {onboardStep === 1 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1 font-sans">
+                  <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-amber-500 font-mono">01.</span> Level of Studies Targeting
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Which academic track or admissions pipeline are you seeking to utilize in Chinese state-funded universities for the 2026/2027 session?
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                  {[
+                    { value: "Bsc", title: "BSc / Bachelor", desc: "4-5 Year Undergrad. Tuition waiver & priority CSC stipend." },
+                    { value: "Masters", title: "Masters / Doctoral", desc: "2-3 Year Postgrad research. Full coverage & 3000+ RMB/mo stipend." },
+                    { value: "Language", title: "Short Language Institute", desc: "Mandarin study, trade, and business training with zero prior HSK." }
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => setOnboardDegree(item.value)}
+                      className={`p-4 rounded-xl text-left border transition-all cursor-pointer flex flex-col gap-2 ${onboardDegree === item.value ? "border-amber-500 bg-amber-500/5" : "border-slate-850 hover:border-slate-700 bg-[#020813]/60"}`}
+                    >
+                      <span className={`text-xs font-bold ${onboardDegree === item.value ? "text-amber-400" : "text-white"}`}>{item.title}</span>
+                      <span className="text-[10px] text-slate-400 leading-normal">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={() => setOnboardStep(2)}
+                    className="bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold text-xs px-6 py-2.5 rounded-lg flex items-center gap-1.5 hover:scale-102 transition cursor-pointer"
+                  >
+                    Continue <ArrowRight className="h-4 w-4 text-slate-950" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardStep === 2 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1 font-sans">
+                  <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-amber-500 font-mono">02.</span> Chinese Language Proficiency (HSK)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Are you planning to enroll in 100% English-taught programs or have you completed HSK examinations for Chinese lectures?
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                  {[
+                    { value: "No, study in English", title: "No HSK / Teach in English", desc: "No preparation required. Direct entry into world-class English modules." },
+                    { value: "HSK 3-4", title: "HSK 3-4 Intermediate", desc: "Eligible for standard scholarship streams with bilingual classes." },
+                    { value: "HSK 5+", title: "HSK 5+ Native Level", desc: "Direct eligibility into elite major departments and highest stipends." }
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => setOnboardHsk(item.value)}
+                      className={`p-4 rounded-xl text-left border transition-all cursor-pointer flex flex-col gap-2 ${onboardHsk === item.value ? "border-amber-500 bg-amber-500/5" : "border-slate-850 hover:border-slate-700 bg-[#020813]/60"}`}
+                    >
+                      <span className={`text-xs font-bold ${onboardHsk === item.value ? "text-amber-400" : "text-white"}`}>{item.title}</span>
+                      <span className="text-[10px] text-slate-400 leading-normal">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-between pt-4">
+                  <button
+                    onClick={() => setOnboardStep(1)}
+                    className="border border-slate-800 hover:bg-slate-950 text-slate-300 font-bold text-xs px-5 py-2.5 rounded-lg cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setOnboardStep(3)}
+                    className="bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold text-xs px-6 py-2.5 rounded-lg flex items-center gap-1.5 hover:scale-102 transition cursor-pointer"
+                  >
+                    Continue <ArrowRight className="h-4 w-4 text-slate-950" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardStep === 3 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1 font-sans">
+                  <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-amber-500 font-mono">03.</span> Scholarship Channel Preference
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Which government, municipal, or specialized corporate scholarship targets do you want to secure?
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                  {[
+                    { value: "Type B Direct", title: "CSC Type B Sponsorship", desc: "Managed directly by Chinese Host Universities. Full scholarship." },
+                    { value: "Provincial / Presidential", title: "Presidential & Provincial", desc: "Awarded by municipal state governments. Fast tracking." },
+                    { value: "No Scholarship", title: "Partial Grant / Self-Funded", desc: "Guaranteed admissions. Subsidized tuition rates." }
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => setOnboardCsc(item.value)}
+                      className={`p-4 rounded-xl text-left border transition-all cursor-pointer flex flex-col gap-2 ${onboardCsc === item.value ? "border-amber-500 bg-amber-500/5" : "border-slate-850 hover:border-slate-700 bg-[#020813]/60"}`}
+                    >
+                      <span className={`text-xs font-bold ${onboardCsc === item.value ? "text-amber-400" : "text-white"}`}>{item.title}</span>
+                      <span className="text-[10px] text-slate-400 leading-normal">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-between pt-4">
+                  <button
+                    onClick={() => setOnboardStep(2)}
+                    className="border border-slate-800 hover:bg-slate-950 text-slate-300 font-bold text-xs px-5 py-2.5 rounded-lg cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setOnboardStep(4)}
+                    className="bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold text-xs px-6 py-2.5 rounded-lg flex items-center gap-1.5 hover:scale-102 transition cursor-pointer"
+                  >
+                    Continue <ArrowRight className="h-4 w-4 text-slate-950" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardStep === 4 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="space-y-1 font-sans">
+                  <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
+                    <span className="text-amber-500 font-mono">04.</span> Core Studying Incentive
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    What is the most critical factor driving your decision to school in China?
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                  {[
+                    { value: "Living Stipends", title: "Cash Living Stipends", desc: "Access standard 2,500 RMB to 3,500 RMB monthly cash payouts." },
+                    { value: "Quality Degree", title: "Global Prestige Degree", desc: "Internationally validated certificate with low rejection rates." },
+                    { value: "Trading & Business", title: "Global Commerce Connections", desc: "Build direct manufacturing and export networks with China trading hubs." }
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => setOnboardMotivation(item.value)}
+                      className={`p-4 rounded-xl text-left border transition-all cursor-pointer flex flex-col gap-2 ${onboardMotivation === item.value ? "border-amber-500 bg-amber-500/5" : "border-slate-850 hover:border-slate-700 bg-[#020813]/60"}`}
+                    >
+                      <span className={`text-xs font-bold ${onboardMotivation === item.value ? "text-amber-400" : "text-white"}`}>{item.title}</span>
+                      <span className="text-[10px] text-slate-400 leading-normal">{item.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-between pt-4">
+                  <button
+                    onClick={() => setOnboardStep(3)}
+                    className="border border-slate-800 hover:bg-slate-950 text-slate-300 font-bold text-xs px-5 py-2.5 rounded-lg cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await handleSaveOnboardingSelections();
+                      setOnboardStep(5);
+                    }}
+                    disabled={onboardSaving}
+                    className="bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold text-xs px-6 py-2.5 rounded-lg flex items-center gap-1.5 hover:scale-102 transition cursor-pointer animate-pulse"
+                  >
+                    {onboardSaving ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-slate-950" />
+                    ) : (
+                      <>
+                        Compile Profile <ArrowRight className="h-4 w-4 text-slate-950" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {onboardStep === 5 && (
+              <div className="space-y-5 animate-fade-in font-sans">
+                {/* Custom system response/reply based on their specific selection */}
+                <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-400 animate-spin" />
+                    <span className="font-display font-extrabold text-[10px] text-amber-400 uppercase tracking-wider font-mono">
+                      Strategic Assessment Delivered
+                    </span>
+                  </div>
+                  
+                  {/* Detailed responsive dynamic reply */}
+                  <h4 className="text-xs font-bold text-white tracking-wide">
+                    {onboardDegree === "Bsc" 
+                      ? "Custom Bachelor Program Track Assessed Successfully!" 
+                      : onboardDegree === "Masters" 
+                        ? "Elite Postgraduate Research & Fellowship Pathway Formulated!" 
+                        : "Premium Hub Mandarin Trade & Language Scheme Formulated!"}
+                  </h4>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
+                    {onboardDegree === "Bsc" && `Our 2026 database maps 48 fully accredited Chinese state institutes hosting complete English-instructed Bachelor modules matching your criteria. Under the ${onboardCsc} channel you selected, you qualify to target full tuition plus accommodation coverage. Your priority target: securing the 2,500 RMB monthly stipend.`}
+                    {onboardDegree === "Masters" && `Postgraduate admissions yield the absolute highest stipend thresholds. By selecting Master's research, you can access our curated index of 35 elite research academies. On the ${onboardCsc} scheme, your stipends will start at 3,000 RMB to 3,500 RMB monthly. No HSK certificate will be required as you opted for English-taught streams.`}
+                    {onboardDegree === "Language" && `Trading opportunities represent the highest return on investment. By opting for a Mandarin Language Training Center, you can skip academic HSK qualifications. We list major hub schools across Guangzhou, Yiwu, and Shanghai. These locations let you study while building manufacturing chains.`}
+                  </p>
+                  
+                  <p className="text-[10.5px] text-amber-300/90 leading-relaxed font-mono">
+                    🎯 Motivation Alignment: {onboardMotivation === "Living Stipends" ? "Stipends are verified up to 3,500 RMB. We provide Remita-authenticated roadmap logs to navigate authentication." : onboardMotivation === "Quality Degree" ? "High ranking institutions of global prestige. Low visa rejection rates." : "Direct shipping networks. Recommended hubs: Guangzhou and Shanghai."}
+                  </p>
+                </div>
+
+                {/* Secure Payment Call to Action (The paywall check-out gate) */}
+                <div className="pt-4 border-t border-slate-900 space-y-4">
+                  <div className="text-center space-y-1">
+                    <h3 className="font-display text-sm font-bold text-white">
+                      Unlock Your Strategic Admissions Portal
+                    </h3>
+                    <p className="text-[11px] text-slate-400 max-w-md mx-auto leading-normal font-normal">
+                      Get immediate full access to 100+ state university stipend tables, Lao Shi AI admissions solver, SOP writing automation, and consular checklists.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#020813] border border-slate-900 p-4 rounded-xl">
+                    <div className="space-y-1.5 font-normal text-left">
+                      <span className="text-[9px] font-mono text-slate-500 uppercase block tracking-wider">PREVIEW REGISTRATION DEED</span>
+                      <p className="text-xs text-slate-300"><strong className="text-slate-100">Email:</strong> {currentUser}</p>
+                      <p className="text-xs text-slate-300"><strong className="text-slate-100">License Limit:</strong> Single applicant</p>
+                      <p className="text-[10px] text-emerald-400 font-mono">✓ Custom Strategy Seeded</p>
+                    </div>
+                    <div className="text-right flex flex-col justify-center space-y-1">
+                      <span className="text-[9px] font-mono text-amber-500 uppercase tracking-widest block font-bold">Nigeria Unified Admission Fee</span>
+                      <p className="text-2xl font-extrabold text-white">₦35,000 <span className="text-xs text-slate-400 font-normal">NGN</span></p>
+                      <p className="text-[9px] text-slate-500">Secure one-time gateway payment</p>
+                    </div>
+                  </div>
+
+                  {/* Recipient Verification Form so the user can see and input their full name and phone number directly */}
+                  <div className="space-y-3 bg-[#030d1e]/90 border border-slate-900 p-4 rounded-xl text-left">
+                    <div className="flex items-center gap-1.5 border-b border-slate-900 pb-2 mb-1">
+                      <ShieldCheck className="h-4 w-4 text-amber-500" />
+                      <h4 className="text-[10px] font-bold text-slate-200 uppercase tracking-wider font-mono">
+                        Verify Recipient Licensing Details
+                      </h4>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1 font-bold">
+                        Full Student Name (Mandatory for credential matching deed)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={payName}
+                        onChange={(e) => {
+                          setPayName(e.target.value);
+                          if (checkoutError) setCheckoutError("");
+                        }}
+                        placeholder="e.g. Samuel Ayotunde"
+                        className="w-full bg-[#020813] border border-slate-850 hover:border-slate-800 focus:border-amber-500 px-3 py-2 rounded-xl text-xs text-white placeholder-slate-650 focus:outline-none transition-all font-medium"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1 font-bold">
+                          Phone Number (WhatsApp)
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={payPhone}
+                          onChange={(e) => {
+                            setPayPhone(e.target.value);
+                            if (checkoutError) setCheckoutError("");
+                          }}
+                          placeholder="e.g. +234 812 345 6789"
+                          className="w-full bg-[#020813] border border-slate-850 hover:border-slate-800 focus:border-amber-500 px-3 py-2 rounded-xl text-xs text-white placeholder-slate-650 focus:outline-none transition-all font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] font-mono text-slate-400 uppercase mb-1 font-bold">
+                          Confirm Billing Email
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={confirmPayEmail}
+                          onChange={(e) => {
+                            setConfirmPayEmail(e.target.value);
+                            if (checkoutError) setCheckoutError("");
+                          }}
+                          placeholder="Confirm billing email"
+                          className="w-full bg-[#020813] border border-slate-850 hover:border-slate-800 focus:border-amber-500 px-3 py-2 rounded-xl text-xs text-white placeholder-slate-650 focus:outline-none transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="agreeToTermsStep5"
+                        checked={agreeToTerms}
+                        onChange={(e) => {
+                          setAgreeToTerms(e.target.checked);
+                          if (checkoutError) setCheckoutError("");
+                        }}
+                        className="mt-0.5 h-3.5 w-3.5 text-amber-500 focus:ring-amber-550 border-slate-800 rounded cursor-pointer accent-amber-500"
+                      />
+                      <label htmlFor="agreeToTermsStep5" className="text-[10px] text-slate-450 leading-normal cursor-pointer select-none">
+                        I confirm this spelling and details are perfectly correct and agree to the guidelines.
+                      </label>
+                    </div>
+                  </div>
+
+                  {checkoutError && (
+                    <div className="text-xs leading-relaxed bg-red-950/40 border border-red-900/40 text-red-100 p-3 rounded-xl font-medium text-center">
+                      {checkoutError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => handleRealPayment(currentUser || payEmail)}
+                    disabled={paymentLoading}
+                    className="w-full bg-amber-500 hover:bg-amber-450 text-slate-950 font-display font-extrabold text-xs py-4 rounded-xl shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {paymentLoading ? (
+                      <RefreshCw className="h-4 w-4 animate-spin text-slate-950" />
+                    ) : (
+                      <>
+                        <CreditCard className="h-4 w-4 text-slate-950" />
+                        Secure Paystack Checkout (₦35,000)
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-[9px] text-slate-500 text-center font-mono">
+                    🛡️ Refund Protected. 100% money back within 7 days if the automated matching criteria encounters systematic database failure.
+                  </p>
+                </div>
+
+                <div className="flex justify-between items-center text-[11px] text-slate-400 pt-3 border-t border-slate-900">
+                  <button
+                    onClick={() => setOnboardStep(4)}
+                    className="hover:text-white transition underline cursor-pointer bg-transparent border-none"
+                  >
+                    &larr; Amend Choices
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentUser(null);
+                      setUserProfile(null);
+                      localStorage.removeItem("china_portal_user");
+                      localStorage.removeItem("china_portal_profile");
+                    }}
+                    className="hover:text-white transition underline cursor-pointer bg-transparent border-none"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         /* PREMIUM MEMBER DESK AREA */
@@ -4295,6 +4719,7 @@ export default function App() {
                 onClick={() => {
                   setShowLogin(false);
                   setAuthError("");
+                  setOtpSent(false);
                 }}
                 className="absolute top-4 right-4 text-slate-400 hover:text-white transition cursor-pointer z-10"
               >
@@ -4302,141 +4727,208 @@ export default function App() {
               </button>
 
               <div className="p-6 space-y-5">
-                <div className="text-center space-y-1.5 pt-2">
-                  <div className="inline-flex p-3 bg-[#0c1a30]/80 text-amber-550 border border-slate-800 rounded-full mb-1">
-                    <ShieldCheck className="h-5 w-5 text-amber-400" />
+                {/* Header section toggle tab tabs */}
+                {!otpSent && (
+                  <div className="grid grid-cols-2 bg-[#020813] p-1 rounded-xl border border-slate-900 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode("register"); setAuthError(""); }}
+                      className={`py-2 rounded-lg text-[11px] font-bold tracking-tight transition cursor-pointer ${authMode === "register" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"}`}
+                    >
+                      New Student (Sign Up)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode("login"); setAuthError(""); }}
+                      className={`py-2 rounded-lg text-[11px] font-bold tracking-tight transition cursor-pointer ${authMode === "login" ? "bg-amber-500 text-slate-950 shadow" : "text-slate-400 hover:text-white"}`}
+                    >
+                      Existing (Log In)
+                    </button>
                   </div>
-                  <h2 className="text-lg font-bold font-display text-white tracking-tight">
-                    {otpSent ? "Verify Security Code" : "Authorized Access Gate"}
+                )}
+
+                <div className="text-center space-y-1">
+                  <div className="inline-flex p-2.5 bg-[#0c1a30]/80 text-amber-500 border border-slate-800 rounded-full mb-0.5">
+                    <Shield className="h-5 w-5 text-amber-400" />
+                  </div>
+                  <h2 className="text-base font-bold font-display text-white tracking-tight">
+                    {otpSent ? "Input Security Check-PIN" : authMode === "register" ? "Initialize Your Student Account" : "Access Your Gated Workspace"}
                   </h2>
-                  <p className="text-[11px] text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  <p className="text-[10px] text-slate-450 text-slate-400 leading-normal max-w-[280px] mx-auto">
                     {otpSent 
-                      ? `We sent a single-use safety check code to ${authEmail}. Input the 6-digit PIN to gain access.`
-                      : "Enter your registered client billing email to request your secure, passwordless login code."}
+                      ? `We sent a single-use verification PIN code to ${authEmail}. Input it below.`
+                      : authMode === "register" 
+                        ? "Register your email and contact information to customize your China strategic admissions onboarding." 
+                        : "Enter your registered email to request your secure, passwordless login code."}
                   </p>
                 </div>
 
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (otpSent) {
-                      handleVerifyOtp(e);
-                    } else {
-                      handleRequestOtp(e);
-                    }
-                  }} 
-                  className="space-y-4"
-                >
-                  {!otpSent ? (
+                {authMode === "register" && !otpSent ? (
+                  /* REGISTER SIGNUP FORM */
+                  <form onSubmit={handleRegisterAccount} className="space-y-3.5">
                     <div>
-                      <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1.5 font-bold">Registered Billing Email</label>
+                      <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1 font-bold">Full Student Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        placeholder="e.g. Samuel Ayotunde"
+                        className="w-full bg-[#020813] border border-slate-850 hover:border-slate-705 px-3 py-2 rounded-xl focus:outline-none focus:border-amber-550 text-white placeholder-slate-600 text-xs transition font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1 font-bold">Billing Email Address</label>
                       <input
                         type="email"
                         required
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
                         placeholder="e.g. key@example.com"
-                        className="w-full bg-[#020813] border border-slate-850 hover:border-slate-700 font-sans px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-amber-550 text-white placeholder-slate-600 text-xs transition font-medium"
+                        className="w-full bg-[#020813] border border-slate-850 hover:border-slate-705 px-3 py-2 rounded-xl focus:outline-none focus:border-amber-550 text-white placeholder-slate-600 text-xs transition font-medium"
                       />
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1.5 font-bold">6-Digit Verification PIN</label>
-                        <input
-                          type="text"
-                          maxLength={6}
-                          required
-                          value={authOtp}
-                          onChange={(e) => setAuthOtp(e.target.value.replace(/\D/g, ''))}
-                          placeholder="e.g. 123456"
-                          className="w-full bg-[#020813] border border-slate-850 hover:border-slate-700 font-mono tracking-[8px] text-center py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 text-emerald-400 text-base font-bold transition placeholder:tracking-normal placeholder:text-slate-600"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px]">
-                        <button
-                          type="button"
-                          onClick={() => handleRequestOtp()}
-                          className="text-slate-400 hover:text-white transition underline cursor-pointer"
-                        >
-                          Resend Code
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOtpSent(false);
-                            setAuthOtp("");
-                            setAuthError("");
-                          }}
-                          className="text-amber-400 hover:text-amber-300 transition hover:underline cursor-pointer font-medium"
-                        >
-                          Change Email Address
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
-                  {authError && (
-                    <div className="text-[11px] leading-normal bg-red-950/40 border border-red-900/40 text-red-400 px-3 py-2 rounded-lg font-medium">
-                      {authError}
+                    <div>
+                      <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1 font-bold">Phone Number (WhatsApp Direct)</label>
+                      <input
+                        type="tel"
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        placeholder="e.g. +234 812 345 6789"
+                        className="w-full bg-[#020813] border border-slate-850 hover:border-slate-705 px-3 py-2 rounded-xl focus:outline-none focus:border-amber-550 text-white placeholder-slate-600 text-xs transition font-medium"
+                      />
                     </div>
-                  )}
 
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
-                  >
-                    {authLoading ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-950" />
-                    ) : otpSent ? (
-                      <>
-                        Verify OTP & Log In
-                        <CheckCircle className="h-3.5 w-3.5" />
-                      </>
-                    ) : (
-                      <>
-                        Request Secure Verification PIN
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </>
+                    {authError && (
+                      <div className="text-[10px] leading-normal bg-red-950/40 border border-red-900/40 text-red-400 p-2 rounded-lg font-semibold text-center">
+                        {authError}
+                      </div>
                     )}
-                  </button>
-                </form>
 
-                <div className="pt-3.5 border-t border-slate-900 text-center space-y-3">
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-slate-400 block">Or bypass typing entirely:</span>
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="w-full bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs font-display"
+                    >
+                      {authLoading ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-950" />
+                      ) : (
+                        <>
+                          Create Account & Start Onboarding
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </>
+                      )}
+                    </button>
+                    
                     <button
                       type="button"
-                      onClick={() => {
-                        const guestEmail = "student@diychina.com";
-                        setCurrentUser(guestEmail);
-                        setUserProfile({
-                          uid: guestEmail,
-                          email: guestEmail,
-                          premium: true,
-                          fullName: "Nigerian Student Applicant",
-                          paymentReference: "DIY-2026-FREETIER-BYPASS",
-                          createdAt: new Date().toISOString()
-                        });
-                        localStorage.setItem("china_portal_user", guestEmail);
-                        localStorage.setItem("china_portal_profile", JSON.stringify({
-                          uid: guestEmail,
-                          email: guestEmail,
-                          premium: true,
-                          fullName: "Nigerian Student Applicant",
-                          paymentReference: "DIY-2026-FREETIER-BYPASS",
-                          createdAt: new Date().toISOString()
-                        }));
-                        setShowLogin(false);
-                      }}
-                      className="inline-flex items-center gap-1.5 text-[11.5px] text-emerald-400 hover:text-emerald-300 font-bold transition hover:underline cursor-pointer"
+                      onClick={() => setAuthMode("login")}
+                      className="text-[10px] text-slate-450 text-slate-400 hover:text-white transition font-medium underline text-center block mx-auto pt-1 cursor-pointer"
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
-                      Enter Instantly as Guest (Free)
+                      Already have an account? Log In instead
                     </button>
-                  </div>
-                </div>
+                  </form>
+                ) : (
+                  /* LOGIN / OTP FORM */
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (otpSent) {
+                        handleVerifyOtp(e);
+                      } else {
+                        handleRequestOtp(e);
+                      }
+                    }} 
+                    className="space-y-4"
+                  >
+                    {!otpSent ? (
+                      <div>
+                        <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1.5 font-bold">Registered Billing Email</label>
+                        <input
+                          type="email"
+                          required
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          placeholder="e.g. key@example.com"
+                          className="w-full bg-[#020813] border border-slate-850 hover:border-slate-700 font-sans px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-amber-550 text-white placeholder-slate-600 text-xs transition font-medium"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[9px] uppercase font-mono tracking-wider text-slate-400 mb-1.5 font-bold">6-Digit Verification PIN</label>
+                          <input
+                            type="text"
+                            maxLength={6}
+                            required
+                            value={authOtp}
+                            onChange={(e) => setAuthOtp(e.target.value.replace(/\D/g, ''))}
+                            placeholder="e.g. 123456"
+                            className="w-full bg-[#020813] border border-slate-850 hover:border-slate-700 font-mono tracking-[8px] text-center py-2.5 rounded-xl focus:outline-none focus:border-emerald-500 text-emerald-400 text-base font-bold transition placeholder:tracking-normal placeholder:text-slate-600"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[10px]">
+                          <button
+                            type="button"
+                            onClick={() => handleRequestOtp()}
+                            className="text-slate-400 hover:text-white transition underline cursor-pointer"
+                          >
+                            Resend Code
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOtpSent(false);
+                              setAuthOtp("");
+                              setAuthError("");
+                            }}
+                            className="text-amber-400 hover:text-amber-300 transition hover:underline cursor-pointer font-medium"
+                          >
+                            Change Email Address
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {authError && (
+                      <div className="text-[11px] leading-normal bg-red-950/40 border border-red-900/40 text-red-400 px-3 py-2 rounded-lg font-medium">
+                        {authError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="w-full bg-amber-500 hover:bg-amber-450 text-slate-950 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                    >
+                      {authLoading ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-slate-950" />
+                      ) : otpSent ? (
+                        <>
+                          Verify OTP & Log In
+                          <CheckCircle className="h-3.5 w-3.5" />
+                        </>
+                      ) : (
+                        <>
+                          Request Secure Verification PIN
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </>
+                      )}
+                    </button>
+
+                    {!otpSent && (
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode("register"); setAuthError(""); }}
+                        className="text-[10px] text-slate-450 text-slate-400 hover:text-white transition font-medium underline text-center block mx-auto pt-1 cursor-pointer"
+                      >
+                        Don't have an account yet? Register here
+                      </button>
+                    )}
+                  </form>
+                )}
               </div>
             </motion.div>
           </motion.div>

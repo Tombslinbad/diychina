@@ -9,7 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { db, DB_SECRET_SUFFIX, closeDb } from "../src/lib/db.js";
-import { doc, setDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { UNIVERSITIES } from "../src/universitiesData.js";
 import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData.js";
 import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData.js";
@@ -127,30 +127,305 @@ const WHITELIST_EMAILS = [
   "demo@diychina.com",
   "student@example.com",
   "student@diychina.com",
-  "igwev2956@gmail.com"
+  "igwev2956@gmail.com",
+  "admin@diychina.com"
 ];
 
 function isWhitelisted(email: string): boolean {
-  return true; // Everything is free and unlocked under premium bypass mode!
+  return WHITELIST_EMAILS.includes(email.trim().toLowerCase());
 }
 
 // Check premium account status route
 app.get("/api/check-premium", async (req, res) => {
-  const email = String(req.query.email).trim().toLowerCase();
+  const email = String(req.query.email || "").trim().toLowerCase();
   if (!email) {
     return res.status(400).json({ error: "Email parameter is required" });
   }
-  return res.json({
-    registered: true,
-    data: {
+
+  if (isWhitelisted(email)) {
+    return res.json({
+      registered: true,
+      data: {
+        uid: email,
+        email: email,
+        premium: true,
+        fullName: email === "igwev2956@gmail.com" ? "Primary Administrator" : "White-listed Applicant",
+        paymentReference: "DIY-2026-WHITELIST-VIP",
+        createdAt: new Date().toISOString()
+      }
+    });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists()) {
+      return res.json({
+        registered: true,
+        data: userDoc.data()
+      });
+    } else {
+      return res.json({
+        registered: false,
+        data: null
+      });
+    }
+  } catch (err: any) {
+    console.error("Error checking premium status in Firestore:", err);
+    return res.status(500).json({ error: "Database reading error", details: err?.message });
+  }
+});
+
+// Draft dynamic account registration endpoint
+app.post("/api/auth/register", async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const fullName = String(req.body.fullName || "").trim();
+  const phoneNumber = String(req.body.phoneNumber || "").trim();
+  const onboarding = req.body.onboarding || null;
+
+  if (!email || !fullName) {
+    return res.status(400).json({ error: "Email and Full Name are critical required fields." });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists()) {
+      return res.status(400).json({
+        error: "This email is registered already. Please use 'Existing (Log In)' to access your account."
+      });
+    }
+
+    const newUser = {
       uid: email,
       email: email,
-      premium: true,
-      name: "Samuel Ayotunde",
-      paymentReference: "DIY-2026-DEMO-VIP",
-      createdAt: "2026-05-28"
+      fullName,
+      phoneNumber,
+      premium: false, // New users are locked behind 35k paywall
+      onboarding,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      signupStep: "onboarding_pending"
+    };
+
+    await setDoc(userDocRef, newUser);
+    return res.status(201).json({
+      status: "success",
+      message: "Account created successfully.",
+      user: newUser
+    });
+  } catch (err: any) {
+    console.error("Register account error:", err);
+    return res.status(500).json({ error: "Failed to register custom credentials.", details: err?.message });
+  }
+});
+
+// Save client onboarding choices
+app.post("/api/auth/save-onboarding", async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const onboarding = req.body.onboarding;
+
+  if (!email || !onboarding) {
+    return res.status(400).json({ error: "Email and onboarding selections are mandatory." });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      return res.status(404).json({ error: "User profile not found." });
     }
-  });
+
+    const updatedData = {
+      ...userDoc.data(),
+      onboarding,
+      signupStep: "payment_pending",
+      updatedAt: new Date().toISOString()
+    };
+
+    await setDoc(userDocRef, updatedData);
+    return res.json({
+      status: "success",
+      user: updatedData
+    });
+  } catch (err: any) {
+    console.error("Save onboarding choices error:", err);
+    return res.status(500).json({ error: "Failed to persist onboarding blueprint choices.", details: err?.message });
+  }
+});
+
+// --- ADMIN CONTROL PANEL DIRECT API HOOKS ---
+
+// Get all sales metrics & users list
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    const colRef = collection(db, "users");
+    const snapshot = await getDocs(colRef);
+    const users: any[] = [];
+    
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const idClean = docSnap.id.replace(DB_SECRET_SUFFIX, "");
+      users.push({ ...data, id: idClean });
+    });
+
+    return res.json({ users });
+  } catch (err: any) {
+    console.error("Admin retrieve users error:", err);
+    return res.status(500).json({ error: "Failed retrieving users database.", details: err?.message });
+  }
+});
+
+// Grant or revoke premium subscription (₦35,000) status manually
+app.post("/api/admin/toggle-premium", async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "Email identifying parameter is required." });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) {
+      return res.status(404).json({ error: "The selected user account could not be found." });
+    }
+
+    const userData = userDoc.data();
+    const newPremium = !userData.premium;
+
+    await setDoc(userDocRef, {
+      ...userData,
+      premium: newPremium,
+      paymentReference: newPremium ? (userData.paymentReference || "ADMIN-GRANTED-" + Date.now()) : "",
+      updatedAt: new Date().toISOString()
+    });
+
+    return res.json({ status: "success", premium: newPremium });
+  } catch (err: any) {
+    console.error("Admin toggle premium error:", err);
+    return res.status(500).json({ error: "Failed to toggle subscription state.", details: err?.message });
+  }
+});
+
+// Irreversibly delete user
+app.post("/api/admin/delete-user", async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "Email is required to purge account." });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
+    await deleteDoc(userDocRef);
+    return res.json({ status: "success" });
+  } catch (err: any) {
+    console.error("Admin delete user error:", err);
+    return res.status(500).json({ error: "Failed to purge database account.", details: err?.message });
+  }
+});
+
+// Create or update a university document in Firestore
+app.post("/api/admin/university/save", async (req, res) => {
+  const uni = req.body.university;
+  if (!uni || !uni.id) {
+    return res.status(400).json({ error: "University record body and unique ID are required." });
+  }
+
+  try {
+    const uniRef = doc(db, "universities", uni.id);
+    await setDoc(uniRef, { ...uni, seedingToken: DB_SECRET_SUFFIX });
+    return res.json({ status: "success", university: uni });
+  } catch (err: any) {
+    console.error("Admin save university error:", err);
+    return res.status(500).json({ error: "Failed to persist university database record.", details: err?.message });
+  }
+});
+
+// Delete university document
+app.post("/api/admin/university/delete", async (req, res) => {
+  const id = req.body.id;
+  if (!id) {
+    return res.status(400).json({ error: "University ID is required." });
+  }
+
+  try {
+    const uniRef = doc(db, "universities", id);
+    await deleteDoc(uniRef);
+    return res.json({ status: "success" });
+  } catch (err: any) {
+    console.error("Admin delete university error:", err);
+    return res.status(500).json({ error: "Failed to delete university record.", details: err?.message });
+  }
+});
+
+// Create or update a CBT questions document
+app.post("/api/admin/question/save", async (req, res) => {
+  const q = req.body.question;
+  if (!q || !q.questionId) {
+    return res.status(400).json({ error: "Question record body and questionId are required." });
+  }
+
+  try {
+    const qRef = doc(db, "csca_mock_questions", q.questionId);
+    await setDoc(qRef, { ...q, seedingToken: DB_SECRET_SUFFIX });
+    return res.json({ status: "success", question: q });
+  } catch (err: any) {
+    console.error("Admin save question error:", err);
+    return res.status(500).json({ error: "Failed to persist question record.", details: err?.message });
+  }
+});
+
+// Delete CBT question document
+app.post("/api/admin/question/delete", async (req, res) => {
+  const questionId = req.body.questionId;
+  if (!questionId) {
+    return res.status(400).json({ error: "Question ID is required." });
+  }
+
+  try {
+    const qRef = doc(db, "csca_mock_questions", questionId);
+    await deleteDoc(qRef);
+    return res.json({ status: "success" });
+  } catch (err: any) {
+    console.error("Admin delete question error:", err);
+    return res.status(500).json({ error: "Failed to delete question.", details: err?.message });
+  }
+});
+
+// Create or update a Language school document
+app.post("/api/admin/language-institute/save", async (req, res) => {
+  const inst = req.body.institute;
+  if (!inst || !inst.id) {
+    return res.status(400).json({ error: "Institute record body and ID are required." });
+  }
+
+  try {
+    const instRef = doc(db, "language_institutes", inst.id);
+    await setDoc(instRef, { ...inst, seedingToken: DB_SECRET_SUFFIX });
+    return res.json({ status: "success", institute: inst });
+  } catch (err: any) {
+    console.error("Admin save language institute error:", err);
+    return res.status(500).json({ error: "Failed to persist institute record.", details: err?.message });
+  }
+});
+
+// Delete Language school document
+app.post("/api/admin/language-institute/delete", async (req, res) => {
+  const id = req.body.id;
+  if (!id) {
+    return res.status(400).json({ error: "Language school ID is required." });
+  }
+
+  try {
+    const instRef = doc(db, "language_institutes", id);
+    await deleteDoc(instRef);
+    return res.json({ status: "success" });
+  } catch (err: any) {
+    console.error("Admin delete language institute error:", err);
+    return res.status(500).json({ error: "Failed to delete language school record.", details: err?.message });
+  }
 });
 
 // Secure OTP Login: Request OTP PIN Code Dispatch
@@ -179,11 +454,11 @@ app.post("/api/auth/send-otp", async (req, res) => {
     const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
     const userDoc = await getDoc(userDocRef);
 
-    if (!userDoc.exists() || !userDoc.data()?.premium) {
+    if (!userDoc.exists()) {
       return res.status(404).json({
         status: "failed",
         registered: false,
-        error: "No premium license matches this email address. Please proceed to unlock lifetime premium access."
+        error: "No student account matches this email address. Please go to 'New Student (Sign Up)' first."
       });
     }
 

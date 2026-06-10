@@ -40,7 +40,8 @@ export enum Tabs {
   CSCA_CBT = "csca_cbt",
   PROMPT_STATION = "prompt_station",
   CONSULTANT = "consultant",
-  CHECKLIST = "checklist"
+  CHECKLIST = "checklist",
+  ADMIN = "admin"
 }
 
 export interface CSCAQuestion {
