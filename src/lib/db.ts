@@ -3,10 +3,9 @@ import { initializeFirestore, terminate, getFirestore } from "firebase/firestore
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import firebaseConfigLocal from "../../firebase-applet-config.json";
 
 // Load configuration securely via FS with multi-level fallbacks to handle compile environments
-let firebaseConfig: any = firebaseConfigLocal;
+let firebaseConfig: any = {};
 
 let localDir = "";
 try {
@@ -38,9 +37,8 @@ for (const p of configPaths) {
   } catch (err) {}
 }
 
-if (!firebaseConfig) {
-  // Absolute fallback to statically imported JSON file if file read fails at runtime in serverless hosts
-  firebaseConfig = firebaseConfigLocal;
+if (!firebaseConfig || !firebaseConfig.projectId) {
+  console.warn("[Firebase Config] firebase-applet-config.json was empty or missing required attributes!");
 }
 
 const activeGlobal: any = typeof globalThis !== "undefined" ? globalThis : {};
