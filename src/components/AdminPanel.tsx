@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   Users, Shield, CheckCircle, AlertTriangle, Trash2, Plus, Edit2, 
-  Database, BookOpen, GraduationCap, TrendingUp, BarChart2, X, Search, DollarSign, ArrowLeft
+  Database, BookOpen, GraduationCap, TrendingUp, BarChart2, X, Search, DollarSign, ArrowLeft, Mail
 } from "lucide-react";
 import { University, Tabs, CSCAQuestion } from "../types";
 import { LanguageInstitute } from "../languageInstitutesData";
@@ -18,6 +18,7 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
   const [questionsList, setQuestionsList] = useState<CSCAQuestion[]>([]);
   const [institutesList, setInstitutesList] = useState<LanguageInstitute[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -137,6 +138,28 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
       }
     } catch (e: any) {
       setErrorMsg(e.message);
+    }
+  };
+
+  // Handle Manual Custom Onboarding Pain Points Email Follow-up Trigger
+  const handleSendFollowUp = async (email: string) => {
+    try {
+      const res = await fetch("/api/admin/send-followup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        setSuccessMsg(`Dispatched beautiful education-niche followed-up email to ${email}!`);
+        addDevLog(`Admin: Dispatched manual paint-point email campaign to client: ${email}`);
+        setUsersList(prev => prev.map(u => u.email === email ? { ...u, followupSent: true, followupSentAt: data.user.followupSentAt } : u));
+        setTimeout(() => setSuccessMsg(""), 4000);
+      } else {
+        setErrorMsg(data.error || "Manual follow-up request denied.");
+      }
+    } catch (e: any) {
+      setErrorMsg(`Failed committing transaction request: ${e.message}`);
     }
   };
 
@@ -343,14 +366,18 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
   }, [unisList, searchQuery]);
 
   const filteredQuestions = useMemo(() => {
+    let list = questionsList;
+    if (selectedSubjectFilter !== "all") {
+      list = list.filter(qi => (qi.subject || "").toLowerCase() === selectedSubjectFilter.toLowerCase());
+    }
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return questionsList;
-    return questionsList.filter(qi => 
+    if (!q) return list;
+    return list.filter(qi => 
       qi.questionText.toLowerCase().includes(q) || 
       qi.questionId.toLowerCase().includes(q) ||
       (qi.subject || "").toLowerCase().includes(q)
     );
-  }, [questionsList, searchQuery]);
+  }, [questionsList, searchQuery, selectedSubjectFilter]);
 
   const filteredInstitutes = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -514,7 +541,7 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
         {/* Loading Spinner overlay */}
         {loading && (
           <div className="py-20 text-center space-y-3">
-            <database className="h-10 w-10 text-indigo-500 animate-spin mx-auto" />
+            <Database className="h-10 w-10 text-indigo-500 animate-spin mx-auto" />
             <p className="text-xs text-slate-400 font-mono">Syncing administrative records securely with Cloud Firestore...</p>
           </div>
         )}
@@ -539,7 +566,7 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
                   {filteredUsers.map((user, idx) => {
                     const isPremium = user.premium === true;
                     return (
-                      <tr key={user.email || idx} className="hover:bg-slate-850/20 transition">
+                      <tr key={`${user.email || "user"}-${idx}`} className="hover:bg-slate-850/20 transition">
                         <td className="p-4 space-y-1">
                           <div className="font-bold text-white text-sm">{user.fullName || "Draft Profile"}</div>
                           <div className="text-xs text-slate-400 font-mono">{user.email}</div>
@@ -565,9 +592,23 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
                         <td className="p-4 text-xs">
                           {user.onboarding ? (
                             <div className="space-y-1.5 max-w-[250px]">
-                              <div><span className="text-slate-500 font-mono text-[9px] uppercase">Goal:</span> <span className="font-bold text-amber-400 text-[10px]">{user.onboarding.degree}</span></div>
-                              <div><span className="text-slate-500 font-mono text-[9px] uppercase">Lang:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.hsk}</span></div>
+                              <div><span className="text-slate-500 font-mono text-[9px] uppercase">Goal:</span> <span className="font-bold text-amber-400 text-[10px]">{user.onboarding.degree || "N/A"}</span></div>
+                              <div><span className="text-slate-500 font-mono text-[9px] uppercase">Lang:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.hsk || "N/A"}</span></div>
                               {user.onboarding.csc && <div><span className="text-slate-500 font-mono text-[9px] uppercase">CSC Type:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.csc}</span></div>}
+                              {user.onboarding.motivation && <div><span className="text-slate-500 font-mono text-[9px] uppercase">Pain Point:</span> <span className="text-red-400 text-[10px] font-medium">{user.onboarding.motivation}</span></div>}
+                              
+                              {/* Automated dispatch status badge */}
+                              <div className="pt-1 flex flex-wrap gap-1">
+                                {user.followupSent ? (
+                                  <span className="inline-flex items-center gap-0.5 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-emerald-400 font-bold" title={user.followupSentAt ? `Sent: ${new Date(user.followupSentAt).toLocaleString()}` : ""}>
+                                    ✉️ Onboarding Follow-up Sent
+                                  </span>
+                                ) : !isPremium ? (
+                                  <span className="inline-flex items-center gap-0.5 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-blue-400 font-bold">
+                                    ⏱️ Auto-Queue Active (Unpaid)
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
                           ) : (
                             <span className="text-slate-500 italic text-[11px]">No onboarding saved</span>
@@ -575,6 +616,15 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex gap-2 justify-end">
+                            {user.onboarding && !isPremium && (
+                              <button 
+                                onClick={() => handleSendFollowUp(user.email)}
+                                className="px-2.5 py-1.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 font-bold text-[10px] rounded-lg transition cursor-pointer flex items-center gap-1"
+                                title="Trigger student pain-point follow-up campaign email"
+                              >
+                                <Mail className="h-3 w-3" /> Follow-Up
+                              </button>
+                            )}
                             <button 
                               onClick={() => handleTogglePremium(user.email)}
                               className={`px-3 py-1.5 ${isPremium ? "bg-amber-600/10 text-amber-500 border border-amber-500/20 hover:bg-amber-600/20" : "bg-emerald-600/10 text-[#03C988] border border-emerald-500/20 hover:bg-emerald-600/20"} font-bold text-[10px] rounded-lg transition cursor-pointer`}
@@ -702,8 +752,21 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
         {/* Tab 3: CBT Questions */}
         {!loading && activeAdminTab === "questions" && (
           <div>
-            <div className="bg-slate-950 p-4 border-b border-slate-850 flex justify-between items-center">
-              <span className="text-[11px] font-bold font-mono uppercase text-slate-400">CSCA Mock CBT Exam Questions Pool</span>
+            <div className="bg-slate-950 p-4 border-b border-slate-850 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
+                <span className="text-[11px] font-bold font-mono uppercase text-slate-400">CSCA Mock CBT Exam Questions Pool</span>
+                <select
+                  value={selectedSubjectFilter}
+                  onChange={(e) => setSelectedSubjectFilter(e.target.value)}
+                  className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300 focus:outline-none cursor-pointer"
+                >
+                  <option value="all">📁 All Subjects</option>
+                  <option value="math">🧮 Mathematics</option>
+                  <option value="physics">⚡ Physics</option>
+                  <option value="chemistry">🧪 Chemistry</option>
+                  <option value="professional_chinese">🗣️ Professional Chinese</option>
+                </select>
+              </div>
               <button 
                 onClick={() => {
                   setEditingQ({
@@ -712,7 +775,7 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
                     options: ["", "", "", ""],
                     correctOption: "A",
                     explanation: "",
-                    subject: "Mathematics",
+                    subject: "math",
                     medium: "English"
                   });
                   setShowQModal(true);
@@ -1043,14 +1106,14 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
               <div>
                 <label className="block text-[10px] text-slate-400 uppercase font-mono font-bold mb-1">Subject domain</label>
                 <select
-                  value={editingQ.subject || "Mathematics"}
+                  value={editingQ.subject || "math"}
                   onChange={(e) => setEditingQ(prev => ({ ...prev, subject: e.target.value }))}
                   className="w-full bg-[#020813] border border-slate-800 px-3 py-2 text-xs text-slate-300 rounded-lg"
                 >
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Physics/Chemistry">Physics/Chemistry</option>
-                  <option value="Academic Chinese">Academic Chinese</option>
-                  <option value="Logical Reasoning">Logical Reasoning</option>
+                  <option value="math">Mathematics</option>
+                  <option value="physics">Physics</option>
+                  <option value="chemistry">Chemistry</option>
+                  <option value="professional_chinese">Professional Chinese</option>
                 </select>
               </div>
             </div>

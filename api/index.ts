@@ -9,11 +9,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { db, DB_SECRET_SUFFIX, closeDb } from "../src/lib/db.js";
+import { generateCSCAQuestions } from "../src/lib/cscaGenerator.js";
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { UNIVERSITIES } from "../src/universitiesData.js";
 import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData.js";
 import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData.js";
-import { sendSystemEmail, getOtpTemplate, getReceiptTemplate } from "../src/lib/emailService.js";
+import { sendSystemEmail, getOtpTemplate, getReceiptTemplate, getEducationFollowUpTemplate } from "../src/lib/emailService.js";
 import webhookRouter from "../src/routes/webhook.js";
 
 const app = express();
@@ -72,12 +73,27 @@ async function ensureSeeded() {
     console.log("[LAZY SEEDER] Checking if csca_mock_questions collection is populated...");
     const cscaCol = collection(db, "csca_mock_questions");
     const cscaSnapshot = await getDocs(cscaCol);
-    if (cscaSnapshot.empty) {
-      console.log(`[LAZY SEEDER] Seeding Firestore with ${CSCA_MATH_QUESTIONS.length} CSCA mock questions...`);
-      for (const q of CSCA_MATH_QUESTIONS) {
-        await setDoc(doc(db, "csca_mock_questions", q.questionId), { ...q, seedingToken: DB_SECRET_SUFFIX });
+    if (cscaSnapshot.empty || cscaSnapshot.size < 800) {
+      console.log(`[LAZY SEEDER] CSCA questions collection underpopulated (${cscaSnapshot.size} records). Seeding 250 distinct CSCA questions per subject (1000 total)...`);
+      
+      const allQ: any[] = [];
+      const subjects: ("math" | "physics" | "chemistry" | "professional_chinese")[] = ["math", "physics", "chemistry", "professional_chinese"];
+      for (const sub of subjects) {
+        const generated = generateCSCAQuestions(sub, 250);
+        allQ.push(...generated);
       }
-      console.log("[LAZY SEEDER] CSCA questions seeding complete!");
+      
+      console.log(`[LAZY SEEDER] Seeding Firestore with ${allQ.length} CSCA mock questions in chunked batches...`);
+      // Upload in parallel chunks of 100 docs
+      const chunkSize = 100;
+      for (let k = 0; k < allQ.length; k += chunkSize) {
+        const chunk = allQ.slice(k, k + chunkSize);
+        await Promise.all(chunk.map(q => 
+          setDoc(doc(db, "csca_mock_questions", q.questionId), { ...q, seedingToken: DB_SECRET_SUFFIX })
+        ));
+        console.log(`[LAZY SEEDER] Seeded chunk ${Math.floor(k / chunkSize) + 1} of ${Math.ceil(allQ.length / chunkSize)}`);
+      }
+      console.log("[LAZY SEEDER] 1000 CSCA questions seeding complete!");
     } else {
       console.log(`[LAZY SEEDER] CSCA questions already populated (${cscaSnapshot.size} records present)`);
     }
@@ -271,10 +287,88 @@ app.get("/api/admin/users", async (req, res) => {
       users.push({ ...data, id: idClean });
     });
 
+    // Automatically check for any unpaid registered users who completed onboarding and send their paints-point follow-up
+    for (let u of users) {
+      if (!u.premium && u.onboarding && !u.followupSent) {
+        try {
+          console.log(`[AUTOMATED SYSTEM AUDIT] Triggering email follow-up for pending lead: ${u.email}`);
+          const mailHtml = getEducationFollowUpTemplate(u.fullName || "Applicant Portfolio", u.email, u.onboarding);
+          await sendSystemEmail(
+            u.email,
+            `⚠️ Strategic Priority Session Setup: Your ${u.onboarding.degree === "Bsc" ? "BSc Target" : u.onboarding.degree === "Masters" ? "Master's Target" : "Mandarin Study"} Admission Suite Details Urgently Pending`,
+            mailHtml
+          );
+          
+          u.followupSent = true;
+          u.followupSentAt = new Date().toISOString();
+          
+          const userDocRef = doc(db, "users", `${u.email}${DB_SECRET_SUFFIX}`);
+          await setDoc(userDocRef, {
+            uid: u.uid || u.email,
+            email: u.email,
+            fullName: u.fullName || "",
+            phoneNumber: u.phoneNumber || "",
+            premium: u.premium || false,
+            onboarding: u.onboarding,
+            createdAt: u.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            signupStep: u.signupStep || "payment_pending",
+            followupSent: true,
+            followupSentAt: u.followupSentAt
+          });
+          console.log(`[AUTOMATED SYSTEM SUCCESS] Successfully saved follow-up status for: ${u.email}`);
+        } catch (e) {
+          console.error("Auto follow-up error inside admin query:", e);
+        }
+      }
+    }
+
     return res.json({ users });
   } catch (err: any) {
     console.error("Admin retrieve users error:", err);
     return res.status(500).json({ error: "Failed retrieving users database.", details: err?.message });
+  }
+});
+
+// Explicit POST endpoint to manually trigger beautiful pain-points email
+app.post("/api/admin/send-followup", async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "Email identifying parameter is required." });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) {
+      return res.status(404).json({ error: "The selected user account could not be found." });
+    }
+
+    const userData = userDoc.data();
+    if (!userData.onboarding) {
+      return res.status(400).json({ error: "This candidate has not completed their onboarding setup questionnaire." });
+    }
+
+    console.log(`[ADMIN TRIGGER] Manual email follow-up initiated: ${email}`);
+    const mailHtml = getEducationFollowUpTemplate(userData.fullName || "Applicant Portfolio", userData.email, userData.onboarding);
+    await sendSystemEmail(
+      userData.email,
+      `⚠️ Strategic Priority Session Setup: Your ${userData.onboarding.degree === "Bsc" ? "BSc Target" : userData.onboarding.degree === "Masters" ? "Master's Target" : "Mandarin Study"} Admission Suite Details Urgently Pending`,
+      mailHtml
+    );
+
+    const updated = {
+      ...userData,
+      followupSent: true,
+      followupSentAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    await setDoc(userDocRef, updated);
+    return res.json({ status: "success", user: updated });
+  } catch (err: any) {
+    console.error("Admin manual send followup error:", err);
+    return res.status(500).json({ error: "Failed manual email dispatch.", details: err?.message });
   }
 });
 
@@ -717,7 +811,12 @@ app.get("/api/csca/questions", async (req, res) => {
     const col = collection(db, "csca_mock_questions");
     const snapshot = await getDocs(col);
     if (snapshot.empty) {
-      return res.json({ questions: CSCA_MATH_QUESTIONS, source: "static" });
+      const allQ: any[] = [];
+      const subjects: ("math" | "physics" | "chemistry" | "professional_chinese")[] = ["math", "physics", "chemistry", "professional_chinese"];
+      for (const sub of subjects) {
+        allQ.push(...generateCSCAQuestions(sub, 250));
+      }
+      return res.json({ questions: allQ, source: "static" });
     }
     const questions: any[] = [];
     snapshot.forEach((docSnap) => {
@@ -725,8 +824,13 @@ app.get("/api/csca/questions", async (req, res) => {
     });
     return res.json({ questions, source: "firestore" });
   } catch (err) {
-    console.error("Failed to fetch questions from Firestore. Falling back to static data.");
-    return res.json({ questions: CSCA_MATH_QUESTIONS, source: "static" });
+    console.error("Failed to fetch questions from Firestore. Falling back to dynamic static data.");
+    const allQ: any[] = [];
+    const subjects: ("math" | "physics" | "chemistry" | "professional_chinese")[] = ["math", "physics", "chemistry", "professional_chinese"];
+    for (const sub of subjects) {
+      allQ.push(...generateCSCAQuestions(sub, 250));
+    }
+    return res.json({ questions: allQ, source: "static" });
   }
 });
 

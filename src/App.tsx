@@ -1675,7 +1675,7 @@ export default function App() {
             {onboardStep === 5 && (
               <div className="space-y-5 animate-fade-in font-sans">
                 {/* Custom system response/reply based on their specific selection */}
-                <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-xl space-y-3">
+                <div className="bg-amber-500/10 border border-amber-500/20 p-5 rounded-xl space-y-4">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-amber-400 animate-spin" />
                     <span className="font-display font-extrabold text-[10px] text-amber-400 uppercase tracking-wider font-mono">
@@ -1684,22 +1684,44 @@ export default function App() {
                   </div>
                   
                   {/* Detailed responsive dynamic reply */}
-                  <h4 className="text-xs font-bold text-white tracking-wide">
+                  <h4 className="text-sm font-bold text-white tracking-wide">
                     {onboardDegree === "Bsc" 
                       ? "Custom Bachelor Program Track Assessed Successfully!" 
                       : onboardDegree === "Masters" 
                         ? "Elite Postgraduate Research & Fellowship Pathway Formulated!" 
                         : "Premium Hub Mandarin Trade & Language Scheme Formulated!"}
                   </h4>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
-                    {onboardDegree === "Bsc" && `Our 2026 database maps 48 fully accredited Chinese state institutes hosting complete English-instructed Bachelor modules matching your criteria. Under the ${onboardCsc} channel you selected, you qualify to target full tuition plus accommodation coverage. Your priority target: securing the 2,500 RMB monthly stipend.`}
-                    {onboardDegree === "Masters" && `Postgraduate admissions yield the absolute highest stipend thresholds. By selecting Master's research, you can access our curated index of 35 elite research academies. On the ${onboardCsc} scheme, your stipends will start at 3,000 RMB to 3,500 RMB monthly. No HSK certificate will be required as you opted for English-taught streams.`}
-                    {onboardDegree === "Language" && `Trading opportunities represent the highest return on investment. By opting for a Mandarin Language Training Center, you can skip academic HSK qualifications. We list major hub schools across Guangzhou, Yiwu, and Shanghai. These locations let you study while building manufacturing chains.`}
-                  </p>
                   
-                  <p className="text-[10.5px] text-amber-300/90 leading-relaxed font-mono">
-                    🎯 Motivation Alignment: {onboardMotivation === "Living Stipends" ? "Stipends are verified up to 3,500 RMB. We provide Remita-authenticated roadmap logs to navigate authentication." : onboardMotivation === "Quality Degree" ? "High ranking institutions of global prestige. Low visa rejection rates." : "Direct shipping networks. Recommended hubs: Guangzhou and Shanghai."}
-                  </p>
+                  {/* Highly responsive academic analysis block */}
+                  <div className="space-y-3 pt-1">
+                    <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
+                      <strong>Selected Degree Focus:</strong>{" "}
+                      {onboardDegree === "Bsc" && `Our 2026 database maps 48 fully accredited Chinese state institutes hosting complete English-instructed Bachelor modules matching your criteria. Under the ${onboardCsc} channel you selected, you qualify to target full tuition plus accommodation coverage. Your priority target: securing the 2,500 RMB monthly stipend.`}
+                      {onboardDegree === "Masters" && `Postgraduate admissions yield the absolute highest stipend thresholds. By selecting Master's research, you can access our curated index of 35 elite research academies. On the ${onboardCsc} scheme, your stipends will start at 3,000 RMB to 3,500 RMB monthly. No HSK certificate will be required as you opted for English-taught streams.`}
+                      {onboardDegree === "Language" && `Trading opportunities represent the highest return on investment. By opting for a Mandarin Language Training Center, you can skip academic HSK qualifications. We list major hub schools across Guangzhou, Yiwu, and Shanghai. These locations let you study while building manufacturing chains.`}
+                    </p>
+
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      <strong>Linguistic Assessment:</strong>{" "}
+                      {onboardHsk === "No, study in English" && "Since you selected 'No HSK / English-taught studies', you must provide a certified English Proficiency Letter from your previous institution to bypass HSK exam requirements. We provide a pre-formatted generator for this letter within the unlocked workspace."}
+                      {onboardHsk === "HSK 3-4" && "With HSK 3-4 intermediate level, you are eligible for elite bilingual scholarship majors. We recommend matching with Type B direct university grants where professor interviews represent the definitive gatekeeper."}
+                      {onboardHsk === "HSK 5+" && "Superb! HSK 5+ native placement allows you to skip mandatory 1-year language preparation loops. You will receive first-priority review on all national CSC admissions streams."}
+                    </p>
+
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      <strong>Consular Channel Strategy:</strong>{" "}
+                      {onboardCsc === "Type A Embassy direct" && "Type A Embassy channel demands early Abuja MOE submission. We highly recommend using our verified Remita/Abuja Foreign Affairs legalization list. You should also run a parallel Type B direct university match as an essential risk firewall."}
+                      {onboardCsc === "Type B Direct University match" && "Type B direct applications bypass federal nomination queues completely. You must secure a direct supervisor acceptance letter. Our unlocked directories host direct contacts for 70+ faculty members to secure acceptance letters."}
+                      {onboardCsc === "Local Provincial/Silkroad" && "Provincial/Silk Road scholarships have lower competition than national pools. They are processed directly by city municipalities. Perfect option for fast, low-friction approvals."}
+                    </p>
+
+                    <p className="text-[11.5px] text-amber-300/95 leading-relaxed font-mono pt-1 border-t border-slate-800">
+                      🎯 Motivation Alignment:{" "}
+                      {onboardMotivation === "Living Stipends" && "Stipends of up to 3,500 RMB (~₦700,000 NGN) monthly are verified. We deliver exclusive checklists for Abuja MFA authentication to prevent file delays."}
+                      {onboardMotivation === "Quality Degree" && "Focusing on high-ranking global elite institutions. Low-risk visa profiles with guaranteed double accredited degree certificates."}
+                      {onboardMotivation === "Trade/Sourcing" && "Direct commercial shipping networks. Recommended hubs matching your profile are Yiwu, Guangzhou, and Shanghai trade schools."}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Secure Payment Call to Action (The paywall check-out gate) */}
@@ -2081,6 +2103,23 @@ export default function App() {
                         <CheckSquare className="h-4 w-4 shrink-0 text-pink-400" />
                         Abuja Legalization Progress
                       </button>
+
+                      {currentUser && ADMIN_EMAILS.includes(currentUser.toLowerCase()) && (
+                        <button
+                          onClick={() => {
+                            setActiveTab(Tabs.ADMIN);
+                            setDrawerOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition cursor-pointer ${
+                            activeTab === Tabs.ADMIN
+                              ? "bg-red-500/20 border border-red-500/40 text-red-550 font-extrabold animate-pulse"
+                              : "bg-red-950/20 border border-red-900/30 text-red-400 hover:bg-red-900/30"
+                          }`}
+                        >
+                          <Shield className="h-4 w-4 shrink-0" />
+                          Consular Admin Panel
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -4466,6 +4505,22 @@ export default function App() {
                         </label>
                       </div>
                     </div>
+                  </motion.div>
+                )}
+
+                {/* TAB ADMIN: RESTRICTED SYSTEM CONTROL PANEL */}
+                {activeTab === Tabs.ADMIN && currentUser && ADMIN_EMAILS.includes(currentUser.toLowerCase()) && (
+                  <motion.div
+                    key="tab-admin"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <AdminPanel 
+                      onBack={() => setActiveTab(Tabs.WORKSPACE)}
+                      addDevLog={addDevLog}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>

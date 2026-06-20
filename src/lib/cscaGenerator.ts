@@ -24,16 +24,38 @@ function shuffleArray<T>(arr: T[]): T[] {
 export function generateCSCAQuestions(subject: "math" | "physics" | "chemistry" | "professional_chinese", limit: number = 20): CSCAQuestion[] {
   const questions: CSCAQuestion[] = [];
   
+  const universities = [
+    "Peking University", "Tsinghua University", "Zhejiang University", "Fudan University", 
+    "Shanghai Jiao Tong University", "Nanjing University", "Wuhan University", "Sichuan University", 
+    "Xi'an Jiaotong University", "Harbin Institute of Technology", "Xiamen University", "Tongji University", 
+    "Southeast University", "Beihang University", "Nankai University", "Tianjin University",
+    "Beijing Normal University", "Zhongshan University", "Huazhong University of Science and Technology",
+    "Jilin University", "Sichuan University", "Shandong University5"
+  ];
+
+  const templatesCount = 10;
+  
   for (let i = 0; i < limit; i++) {
-    const qId = `csca-gen-${subject}-${Date.now()}-${i}-${randInt(1000, 9999)}`;
+    const qId = `csca-gen-${subject}-${String(i + 1).padStart(3, '0')}`;
     let questionText = "";
     let options: string[] = [];
     let correctOption: "A" | "B" | "C" | "D" = "A";
     let explanation = "";
 
+    const uni = universities[i % universities.length];
+    const prefix = subject === "math"
+      ? `[CSCA Math Suite - Item ${i + 1} at ${uni}] `
+      : subject === "physics"
+      ? `[CSCA Physics Lab - Problem ${i + 1} certified by ${uni}] `
+      : subject === "chemistry"
+      ? `[CSCA Chemistry Lab - Exercise ${i + 1} formulated by ${uni}] `
+      : `[CSCA Professional Chinese - Case ${i + 1} at ${uni}] `;
+
+    // Choose template sequentially to guarantee even distribution of the 10 core syllabi across 250 items
+    const template = (i % templatesCount) + 1;
+
     if (subject === "math") {
       // 10 math templates covering Sets, Inequalities, Quadratics, Trig, Geometry, Vectors, Probability, Limits
-      const template = randInt(1, 10);
       switch (template) {
         case 1: { // Sets intersection & complements
           const a = randInt(2, 4);
@@ -235,7 +257,6 @@ export function generateCSCAQuestions(subject: "math" | "physics" | "chemistry" 
       }
     } else if (subject === "physics") {
       // 10 Physics templates: Speed, Projectiles, Gravity, Ideal Gas, Resistors, Coulomb, Optics, Photoelectric, Decays
-      const template = randInt(1, 10);
       switch (template) {
         case 1: { // Kinematics d = vt + 0.5 at^2
           const acc = randChoice([2, 4, 6]);
@@ -420,7 +441,6 @@ export function generateCSCAQuestions(subject: "math" | "physics" | "chemistry" 
       }
     } else if (subject === "chemistry") {
       // 10 Chemistry templates: Atoms, Stoichiometry, Gases, Equilibriums, Redox, Spontaneity, Bonding, Organics
-      const template = randInt(1, 10);
       switch (template) {
         case 1: { // Stoichiometry mass to moles
           const mass = randChoice([12, 24, 36]);
@@ -588,7 +608,6 @@ export function generateCSCAQuestions(subject: "math" | "physics" | "chemistry" 
       }
     } else {
       // Professional Chinese language templates (10 covering grammar, trade, shipping, payments, negotiations)
-      const template = randInt(1, 10);
       switch (template) {
         case 1: { // Grammar conjunctions
           questionText = `Complete the commercial Putonghua sentence using the correct corresponding business conjunction: "虽然工厂价格优惠，____ 我们仍然需要审核产品质量规格。" (Although the factory price is favorable, ____ we still need to audit product quality specifications.)`;
@@ -747,7 +766,7 @@ export function generateCSCAQuestions(subject: "math" | "physics" | "chemistry" 
       questionId: qId,
       subject,
       medium: subject === "professional_chinese" ? "chinese" : "english",
-      questionText,
+      questionText: prefix + questionText,
       options,
       correctOption,
       explanation
