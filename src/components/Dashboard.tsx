@@ -104,7 +104,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Intelligent Workspace Active
             </span>
             <h1 className="text-xl md:text-3xl font-extrabold font-display text-white tracking-tight leading-none mt-1">
-              DIY China Admissions & Verification Center
+              VerifiedUni Admissions & Verification Center
             </h1>
             <p className="text-xs md:text-sm text-slate-400 max-w-2xl leading-relaxed">
               Unlock West Africa's premium diagnostic panel syncing automated CSC Type A/B agency credentials, Abuja legalization timelines, and short-term logistics Mandarin pathways.
@@ -333,7 +333,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 required
                 value={disputeRef}
                 onChange={(e) => setDisputeRef(e.target.value)}
-                placeholder="e.g. DIY-CSC-39DF92H..."
+                placeholder="e.g. VUNI-CSC-39DF92H..."
                 className="w-full bg-[#020712] border border-slate-850 hover:border-slate-700 px-3 py-2 rounded-lg text-xs focus:outline-none focus:border-indigo-500 text-white placeholder-slate-655 uppercase font-mono tracking-wider transition"
               />
             </div>

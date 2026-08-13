@@ -140,11 +140,11 @@ app.get("/api/universities", async (req, res) => {
 });
 
 const WHITELIST_EMAILS = [
-  "demo@diychina.com",
+  "demo@verifieduni.com",
   "student@example.com",
-  "student@diychina.com",
+  "student@verifieduni.com",
   "igwev2956@gmail.com",
-  "admin@diychina.com"
+  "admin@verifieduni.com"
 ];
 
 function isWhitelisted(email: string): boolean {
@@ -166,7 +166,7 @@ app.get("/api/check-premium", async (req, res) => {
         email: email,
         premium: true,
         fullName: email === "igwev2956@gmail.com" ? "Primary Administrator" : "White-listed Applicant",
-        paymentReference: "DIY-2026-WHITELIST-VIP",
+        paymentReference: "VUNI-2026-WHITELIST-VIP",
         createdAt: new Date().toISOString()
       }
     });
@@ -382,12 +382,25 @@ app.post("/api/admin/toggle-premium", async (req, res) => {
   try {
     const userDocRef = doc(db, "users", `${email}${DB_SECRET_SUFFIX}`);
     const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) {
-      return res.status(404).json({ error: "The selected user account could not be found." });
-    }
+    
+    let newPremium = true;
+    let userData: any = {};
 
-    const userData = userDoc.data();
-    const newPremium = !userData.premium;
+    if (userDoc.exists()) {
+      userData = userDoc.data();
+      newPremium = !userData.premium;
+    } else {
+      // If user profile doesn't exist yet, we auto-create a premium profile
+      userData = {
+        uid: email,
+        email: email,
+        fullName: "Granted Applicant",
+        phoneNumber: "",
+        createdAt: new Date().toISOString(),
+        signupStep: "completed"
+      };
+      newPremium = true;
+    }
 
     await setDoc(userDocRef, {
       ...userData,
@@ -533,7 +546,7 @@ app.post("/api/auth/send-otp", async (req, res) => {
     const whitelistOtp = "123456";
     sendSystemEmail(
       email,
-      "Your Temporary Secure Sign-In Code - Admissions DIY Nigeria",
+      "Your Temporary Secure Sign-In Code - VerifiedUni",
       getOtpTemplate(email, whitelistOtp)
     ).catch((e) => console.log("SMTP skipped or timed out asynchronously in whitelisting sandbox route:", e));
 
@@ -569,14 +582,14 @@ app.post("/api/auth/send-otp", async (req, res) => {
 
     await sendSystemEmail(
       email,
-      "Your Secure login Verification PIN Code - Admissions DIY Nigeria",
+      "Your Secure login Verification PIN Code - VerifiedUni",
       getOtpTemplate(email, otp)
     );
 
     return res.json({
       status: "success",
       registered: true,
-      message: "Safety PIN code successfully dispatched to your email address. It will expire in 15 minutes."
+      message: `Safety PIN code successfully dispatched to your email address (Dev Sandbox PIN: ${otp}). It will expire in 15 minutes.`
     });
   } catch (err: any) {
     console.error("Failed executing OTP send block:", err);
@@ -602,7 +615,7 @@ app.post("/api/auth/verify-otp", async (req, res) => {
           email: email,
           premium: true,
           name: "Samuel Ayotunde",
-          paymentReference: "DIY-2026-DEMO-VIP",
+          paymentReference: "VUNI-2026-DEMO-VIP",
           createdAt: "2026-05-28"
         }
       });

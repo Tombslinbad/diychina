@@ -27,7 +27,7 @@ export function getOtpTemplate(email: string, otp: string): string {
     <body>
       <div class="wrapper">
         <div class="header">
-          <div class="logo">Admissions DIY Nigeria</div>
+          <div class="logo">VerifiedUni</div>
           <div class="subtitle">Chinese Government CSC Scholarship Portal</div>
         </div>
         <div class="content">
@@ -46,7 +46,7 @@ export function getOtpTemplate(email: string, otp: string): string {
           </div>
         </div>
         <div class="footer">
-          © 2026 Admissions DIY Nigeria. All Rights Reserved.<br>
+          © 2026 VerifiedUni. All Rights Reserved.<br>
           Gated consular portal access. Powered by verified Paystack checkout.
         </div>
       </div>
@@ -90,7 +90,7 @@ export function getReceiptTemplate(email: string, reference: string): string {
     <body>
       <div class="wrapper">
         <div class="header">
-          <div class="logo">Admissions DIY Nigeria</div>
+          <div class="logo">VerifiedUni</div>
           <div class="subtitle">Chinese Government CSC Scholarship Portal</div>
         </div>
         <div class="content">
@@ -113,7 +113,7 @@ export function getReceiptTemplate(email: string, reference: string): string {
             </div>
             <div class="receipt-row">
               <span class="receipt-label">Access Level:</span>
-              <span class="receipt-val">DIY Executive CSC Scholarship Admission Suite</span>
+              <span class="receipt-val">VerifiedUni Executive CSC Scholarship Suite</span>
             </div>
             <div class="receipt-row" style="margin-bottom: 0;">
               <span class="receipt-label">Validity Period:</span>
@@ -130,7 +130,7 @@ export function getReceiptTemplate(email: string, reference: string): string {
           </div>
         </div>
         <div class="footer">
-          © 2026 Admissions DIY Nigeria. All Rights Reserved.<br>
+          © 2026 VerifiedUni. All Rights Reserved.<br>
           Secured with robust 256-Bit SSL Paystack verification.
         </div>
       </div>
@@ -208,7 +208,7 @@ export function getEducationFollowUpTemplate(fullName: string, email: string, on
     <body>
       <div class="wrapper">
         <div class="branding-header">
-          <div class="branding-title">Admissions DIY Nigeria</div>
+          <div class="branding-title">VerifiedUni</div>
           <div class="branding-sub">Unified Chinese Government Academic Portal</div>
         </div>
         <div class="main-card">
@@ -278,7 +278,7 @@ export function getEducationFollowUpTemplate(fullName: string, email: string, on
         </div>
         
         <div class="disputed-footer">
-          © 2026 Admissions DIY Nigeria. All Rights Reserved.<br>
+          © 2026 VerifiedUni. All Rights Reserved.<br>
           Gated consular application support. Remita-compatible Nigerian-Chinese educational pipelines.<br>
           <span style="color: #334155; font-size: 10px;">To guarantee access, keep this safety blueprint active.</span>
         </div>
@@ -288,14 +288,109 @@ export function getEducationFollowUpTemplate(fullName: string, email: string, on
   `;
 }
 
+// Helper to parse and strictly format the Resend "from" email header
+// Handles surrounding quotes, missing angle brackets, missing names, or malformed inputs
+function getFormattedResendFrom(): string {
+  let raw = (process.env.RESEND_FROM || process.env.SMTP_SENDER || "").trim();
+  // Strip surrounding quotes if present (e.g. '"VerifiedUni <onboarding@resend.dev>"' -> 'VerifiedUni <onboarding@resend.dev>')
+  raw = raw.replace(/^["']|["']$/g, '').trim();
+
+  if (!raw) {
+    return "VerifiedUni <onboarding@resend.dev>";
+  }
+
+  // Check if angle brackets exist with valid email inside e.g. "Name <email@domain.com>"
+  const angleMatch = raw.match(/^(.*?)\s*<([^>]+)>$/);
+  if (angleMatch) {
+    const name = angleMatch[1].replace(/["']/g, '').trim();
+    const email = angleMatch[2].trim();
+    if (email && email.includes("@")) {
+      return name ? `${name} <${email}>` : email;
+    }
+  }
+
+  // If raw is a plain email e.g. "onboarding@resend.dev" or "support@domain.com"
+  if (raw.includes("@") && !raw.includes(" ")) {
+    return `VerifiedUni <${raw}>`;
+  }
+
+  // If raw contains spaces and an email somewhere e.g. "VerifiedUni onboarding@resend.dev"
+  const emailMatch = raw.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  if (emailMatch) {
+    const extractedEmail = emailMatch[1];
+    const extractedName = raw.replace(extractedEmail, '').replace(/[<> "']/g, '').trim();
+    return extractedName ? `${extractedName} <${extractedEmail}>` : `VerifiedUni <${extractedEmail}>`;
+  }
+
+  // Safe default
+  return "VerifiedUni <onboarding@resend.dev>";
+}
+
 // Global Core Mailing Interface
-// Dynamically routes to live SMTP server or simulated sandbox logger based on credentials state
+// Dynamically routes to Resend API, live SMTP server, or simulated sandbox logger based on credentials state
 export async function sendSystemEmail(to: string, subject: string, htmlContent: string) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const resendFrom = getFormattedResendFrom();
+
+  // Priority 1: Direct Resend API integration (Fastest & most reliable)
+  if (resendApiKey && resendApiKey.trim() !== "" && !resendApiKey.includes("your_resend_api_key")) {
+    try {
+      let res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: [to],
+          subject: subject,
+          html: htmlContent,
+        }),
+      });
+
+      let data = await res.json();
+      
+      // If failed due to unverified domain or invalid 'from' field, retry with standard onboarding@resend.dev fallback
+      if (!res.ok && resendFrom !== "VerifiedUni <onboarding@resend.dev>") {
+        console.warn(`[RESEND API WARNING] Primary 'from' address ("${resendFrom}") rejected (${data.message || res.status}). Retrying with default onboarding domain...`);
+        
+        const fallbackFrom = "VerifiedUni <onboarding@resend.dev>";
+        res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey.trim()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: fallbackFrom,
+            to: [to],
+            subject: subject,
+            html: htmlContent,
+          }),
+        });
+        data = await res.json();
+      }
+
+      if (res.ok) {
+        console.log(`[RESEND API SUCCESS] Dispatched secure transmission: "${subject}" to ${to} (ID: ${data.id})`);
+        return { success: true, method: "resend", id: data.id };
+      } else if (res.status === 403 && (data.message || "").toLowerCase().includes("testing emails")) {
+        console.warn(`[RESEND SANDBOX NOTICE] Resend free testing mode restricts delivery to the account owner (igwev2956@gmail.com). To send emails to ${to}, verify your custom domain at https://resend.com/domains . Falling back to backup email transport...`);
+      } else {
+        console.error(`[RESEND API ERROR] Status ${res.status}:`, data.message || JSON.stringify(data));
+      }
+    } catch (err: any) {
+      console.error("[RESEND API FAILURE] Exception during Resend API dispatch:", err?.message || err);
+    }
+  }
+
+  // Priority 2: Standard SMTP setup
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const sender = process.env.SMTP_SENDER || `Admissions DIY Nigeria <no-reply@diychina.com>`;
+  const sender = process.env.SMTP_SENDER || `VerifiedUni <no-reply@verifieduni.com>`;
 
   // Rigorous validation: check if SMTP credentials hold authentic parameters
   const isConfigured = user && pass && user !== "your-email@gmail.com" && pass !== "your-app-password" && user !== "";
@@ -337,7 +432,7 @@ export async function sendSystemEmail(to: string, subject: string, htmlContent: 
   console.log(`✉️  [SIMULATED MAIL DISPATCH ENVELOPE]`);
   console.log(`   To:      ${to}`);
   console.log(`   Subject: ${subject}`);
-  console.log(`   From:    ${sender}`);
+  console.log(`   From:    ${resendApiKey ? resendFrom : sender}`);
   console.log("-".repeat(80));
   
   // Strip CSS styles and HTML tags to extract a neat summary representation

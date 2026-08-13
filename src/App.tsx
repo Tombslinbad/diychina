@@ -50,8 +50,8 @@ import heroImg from "./assets/images/china_university_admission_1780294406477.pn
 
 const ADMIN_EMAILS = [
   "igwev2956@gmail.com",
-  "demo@diychina.com",
-  "admin@diychina.com"
+  "demo@verifieduni.com",
+  "admin@verifieduni.com"
 ];
 
 export default function App() {
@@ -75,6 +75,7 @@ export default function App() {
   const [otpSent, setOtpSent] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
 
   // Registration & Onboarding States
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
@@ -479,6 +480,7 @@ export default function App() {
 
     setAuthLoading(true);
     setAuthError("");
+    setAuthSuccessMsg("");
     addDevLog(`Connecting to secure authentication node for ${email}...`);
 
     try {
@@ -491,6 +493,7 @@ export default function App() {
 
       if (res.ok && data.status === "success") {
         setOtpSent(true);
+        setAuthSuccessMsg(data.message || `Security PIN dispatched successfully to ${email}.`);
         addDevLog(data.message || `Security PIN dispatched successfully to ${email}.`);
       } else {
         setAuthError(data.error || "The email is not associated with an active registration. Please click 'Register / Sign Up' first.");
@@ -805,7 +808,7 @@ export default function App() {
           fullName: payName.trim() || "Samuel Ayotunde",
           phoneNumber: payPhone.trim() || "",
           createdAt: new Date().toISOString(),
-          paymentReference: "DIY-2026-FREE-SANDBOX"
+          paymentReference: "VUNI-2026-FREE-SANDBOX"
         };
         setPaymentCompleted(true);
         setTimeout(() => {
@@ -827,7 +830,7 @@ export default function App() {
         fullName: payName.trim() || "Samuel Ayotunde",
         phoneNumber: payPhone.trim() || "",
         createdAt: new Date().toISOString(),
-        paymentReference: "DIY-2026-FREE-OFFLINE-SANDBOX"
+        paymentReference: "VUNI-2026-FREE-OFFLINE-SANDBOX"
       };
       setPaymentCompleted(true);
       setTimeout(() => {
@@ -878,14 +881,14 @@ export default function App() {
         email: emailToPay.trim().toLowerCase(),
         amount: 35000 * 100, // 35k NGN in smallest currency subunit (kobo)
         currency: "NGN",
-        ref: "DIY-CSC-" + Math.random().toString(36).substring(2, 11).toUpperCase(),
+        ref: "VUNI-CSC-" + Math.random().toString(36).substring(2, 11).toUpperCase(),
         metadata: {
           userId: emailToPay.trim().toLowerCase(),
           custom_fields: [
             {
               display_name: "Service Name",
               variable_name: "service_name",
-              value: "DIY China Admissions Portal Access"
+              value: "VerifiedUni Admissions Portal Access"
             },
             {
               display_name: "Customer Name",
@@ -1130,7 +1133,7 @@ export default function App() {
             <div className="flex justify-between items-center px-6 h-full w-full max-w-7xl mx-auto">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-6 w-6 text-amber-500" />
-                <span className="font-display font-black text-sm md:text-base text-white tracking-tight">The 2026 DIY China Admissions</span>
+                <span className="font-display font-black text-sm md:text-base text-white tracking-tight">VerifiedUni</span>
               </div>
               <nav className="hidden md:flex gap-8 items-center">
                 <a className="text-amber-500 font-bold border-b-2 border-amber-500 text-xs py-1 transition-all" href="#">Home</a>
@@ -1443,9 +1446,9 @@ export default function App() {
           <footer className="w-full py-12 bg-[#020813] border-t border-slate-900">
             <div className="flex flex-col md:flex-row justify-between items-center px-6 gap-8 max-w-7xl mx-auto">
               <div className="flex flex-col gap-2 items-center md:items-start text-center md:text-left">
-                <span className="font-display font-extrabold text-sm text-white">The 2026 DIY China Admissions</span>
+                <span className="font-display font-extrabold text-sm text-white">VerifiedUni</span>
                 <p className="text-[10px] text-slate-500 leading-normal">
-                  © 2026 The 2026 DIY China Admissions & AI Verification Portal. <br/>
+                  © 2026 VerifiedUni China Admissions & AI Verification Portal. <br/>
                   Secure Processing via verified Paystack gateway node.
                 </p>
               </div>
@@ -1465,7 +1468,7 @@ export default function App() {
                   Refund Policy (100% Bond)
                 </button>
                 <a className="hover:text-amber-400 underline transition-all" href="#sec">Security Protocols</a>
-                <a className="hover:text-amber-400 underline transition-all font-normal text-slate-350" href="mailto:support@diychina.com">Support (support@diychina.com)</a>
+                <a className="hover:text-amber-400 underline transition-all font-normal text-slate-350" href="mailto:support@verifieduni.com">Support (support@verifieduni.com)</a>
               </div>
             </div>
           </footer>
@@ -1899,7 +1902,7 @@ export default function App() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-sm md:text-lg font-bold font-display text-white tracking-tight">The DIY Admissions Portal</h1>
+                    <h1 className="text-sm md:text-lg font-bold font-display text-white tracking-tight">VerifiedUni Admissions Portal</h1>
                     <span className="hidden sm:inline bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-wider">
                       Premium
                     </span>
@@ -3082,7 +3085,7 @@ export default function App() {
                   </motion.div>
                 )}
 
-                {/* TAB 0: ADVANCED DIY 2026 ADMIN BENTO WORKSPACE */}
+                {/* TAB 0: ADVANCED VERIFIEDUNI 2026 ADMIN BENTO WORKSPACE */}
                 {activeTab === Tabs.WORKSPACE && (
                   <motion.div
                     key="tab-workspace"
@@ -3126,7 +3129,7 @@ export default function App() {
                             2026 Admissions Command Center
                           </span>
                           <h1 className="text-2xl font-bold font-display text-white mt-2 tracking-tight">
-                            DIY China Admissions & Verification Workspace
+                            VerifiedUni Admissions & Verification Workspace
                           </h1>
                           <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
                             A unified, high-density dashboard combining the 2026 China Scholastic Competency Assessment (CSCA) Mock Center, Local Nigeria Administrative authentication routes, and the Short-Term Trading Mandarin Directory.
@@ -4531,10 +4534,10 @@ export default function App() {
       {/* FOOTER CODES */}
       <footer className="bg-slate-950 border-t border-slate-900 py-12 mt-24 text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-slate-500 font-mono text-[10px] tracking-wider uppercase">
-          <span>The 2026 DIY China Admissions & AI Verification Portal</span>
+          <span>VerifiedUni - China Admissions & AI Verification Portal</span>
         </div>
         <p className="text-[11px] text-slate-500 max-w-xl mx-auto px-4 leading-relaxed">
-          Disclaimer: This portal is a self-directed DIY prep panel utilizing direct-matched data feeds and secure OpenAI/Google Gemini models to draft prompts. Unofficial resource assistance. Use with direct Ministry channels.
+          Disclaimer: This portal is a self-directed prep panel utilizing direct-matched data feeds and secure OpenAI/Google Gemini models to draft prompts. Unofficial resource assistance. Use with direct Ministry channels.
         </p>
         <div className="flex justify-center gap-6 text-[11px] text-slate-400 font-normal">
           <button 
@@ -4551,7 +4554,7 @@ export default function App() {
           >
             Refund Policy
           </button>
-          <a className="hover:text-amber-400 underline transition-all" href="mailto:support@diychina.com">support@diychina.com</a>
+          <a className="hover:text-amber-400 underline transition-all" href="mailto:support@verifieduni.com">support@verifieduni.com</a>
         </div>
       </footer>
 
@@ -4586,7 +4589,7 @@ export default function App() {
                   <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-emerald-700">Official Secure Paystack Gateway</span>
                 </div>
                 <h3 className="text-xl font-extrabold text-[#111c2d] font-display">PAY ₦35,000 NGN</h3>
-                <p className="text-xs text-slate-600 mt-1">Unlock DIY Chinese CSC Scholarship Admissions & Verification Portal</p>
+                <p className="text-xs text-slate-600 mt-1">Unlock VerifiedUni Chinese CSC Scholarship Admissions & Verification Portal</p>
               </div>
 
               <div className="p-6 space-y-5">
@@ -4605,7 +4608,7 @@ export default function App() {
                     <div className="bg-slate-50 p-4 border border-slate-100 rounded-xl space-y-2.5 text-xs text-slate-600 font-sans">
                       <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
                         <span className="text-slate-500 font-medium">Merchant Account:</span>
-                        <span className="font-bold text-slate-800">Admissions DIY Nigeria</span>
+                        <span className="font-bold text-slate-800">VerifiedUni</span>
                       </div>
                       <div className="flex justify-between items-center pb-2 border-b border-slate-200/50">
                         <span className="text-slate-500 font-medium">Service Delivery:</span>
@@ -4938,12 +4941,19 @@ export default function App() {
                               setOtpSent(false);
                               setAuthOtp("");
                               setAuthError("");
+                              setAuthSuccessMsg("");
                             }}
                             className="text-amber-400 hover:text-amber-300 transition hover:underline cursor-pointer font-medium"
                           >
                             Change Email Address
                           </button>
                         </div>
+                      </div>
+                    )}
+
+                    {otpSent && authSuccessMsg && (
+                      <div className="text-[11px] leading-relaxed bg-emerald-950/40 border border-emerald-900/40 text-emerald-400 px-3 py-2.5 rounded-xl font-medium font-sans">
+                        {authSuccessMsg}
                       </div>
                     )}
 
@@ -5016,7 +5026,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-base font-extrabold font-display text-white">Official Legal Agreements</h2>
-                    <p className="text-[10px] text-slate-400 font-mono tracking-wide uppercase">The 2026 DIY China Admissions & AI Portal</p>
+                    <p className="text-[10px] text-slate-400 font-mono tracking-wide uppercase">VerifiedUni China Admissions & AI Portal</p>
                   </div>
                 </div>
                 <button
@@ -5062,7 +5072,7 @@ export default function App() {
                         <span className="text-amber-500 font-mono">01.</span> Scope of Self-Directed Service
                       </h4>
                       <p>
-                        The 2026 DIY China Admissions Portal is a digital, self-directed admissions preparatory toolkit tailored specifically for West African students. We provide mapped institutional directories, direct civil liaison blueprints, and secure generative AI copywriting prompts to draft your statements, emails, and forms.
+                        VerifiedUni is a digital, self-directed admissions preparatory toolkit tailored specifically for West African students. We provide mapped institutional directories, direct civil liaison blueprints, and secure generative AI copywriting prompts to draft your statements, emails, and forms.
                       </p>
                     </div>
 
@@ -5110,7 +5120,7 @@ export default function App() {
                         How to Trigger a Claim
                       </h4>
                       <p>
-                        Simply forward an email to <span className="text-white font-semibold">support@diychina.com</span> enclosing your registered billing email address and clear screenshots of your active application submission logs showing five submitted applications.
+                        Simply forward an email to <span className="text-white font-semibold">support@verifieduni.com</span> enclosing your registered billing email address and clear screenshots of your active application submission logs showing five submitted applications.
                       </p>
                     </div>
 

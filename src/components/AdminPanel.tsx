@@ -33,6 +33,8 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
   const [showInstModal, setShowInstModal] = useState(false);
   const [editingInst, setEditingInst] = useState<Partial<LanguageInstitute> | null>(null);
 
+  const [manualEmail, setManualEmail] = useState("");
+
   // Fetch initial collections
   const loadData = async () => {
     setLoading(true);
@@ -108,13 +110,45 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
       if (res.ok && data.status === "success") {
         setSuccessMsg(`Access level toggled for ${email}!`);
         addDevLog(`Admin: Modified licensing contract rules for client ${email}`);
-        setUsersList(prev => prev.map(u => u.email === email ? { ...u, premium: data.premium } : u));
+        await loadData();
         setTimeout(() => setSuccessMsg(""), 3000);
       } else {
         setErrorMsg(data.error || "Execution state rejected.");
       }
     } catch (e: any) {
       setErrorMsg(`Failed committing parameter overrides: ${e.message}`);
+    }
+  };
+
+  // Handle manual instant grant input form
+  const handleManualGrantAccess = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = manualEmail.trim().toLowerCase();
+    if (!email) {
+      setErrorMsg("Please type an email address.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/toggle-premium", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === "success") {
+        setSuccessMsg(`Access level successfully GRANTED to ${email}!`);
+        addDevLog(`Admin: Manually granted premium license access to email: ${email}`);
+        setManualEmail("");
+        await loadData();
+        setTimeout(() => setSuccessMsg(""), 4000);
+      } else {
+        setErrorMsg(data.error || "Failed to grant access.");
+      }
+    } catch (error: any) {
+      setErrorMsg(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,7 +165,7 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
       if (res.ok && data.status === "success") {
         setSuccessMsg(`Purged ${email} from secure credentials database.`);
         addDevLog(`Admin: Pruned ${email} credentials from directory services.`);
-        setUsersList(prev => prev.filter(u => u.email !== email));
+        setUsersList(prev => prev.filter(u => (u.email || u.id) !== email));
         setTimeout(() => setSuccessMsg(""), 3500);
       } else {
         setErrorMsg(data.error || "Purge request denied.");
@@ -153,7 +187,7 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
       if (res.ok && data.status === "success") {
         setSuccessMsg(`Dispatched beautiful education-niche followed-up email to ${email}!`);
         addDevLog(`Admin: Dispatched manual paint-point email campaign to client: ${email}`);
-        setUsersList(prev => prev.map(u => u.email === email ? { ...u, followupSent: true, followupSentAt: data.user.followupSentAt } : u));
+        setUsersList(prev => prev.map(u => (u.email || u.id) === email ? { ...u, followupSent: true, followupSentAt: data.user.followupSentAt } : u));
         setTimeout(() => setSuccessMsg(""), 4000);
       } else {
         setErrorMsg(data.error || "Manual follow-up request denied.");
@@ -548,104 +582,131 @@ export function AdminPanel({ onBack, addDevLog }: AdminPanelProps) {
 
         {/* Tab 1: Users */}
         {!loading && activeAdminTab === "users" && (
-          <div className="overflow-x-auto">
-            {filteredUsers.length === 0 ? (
-              <div className="p-12 text-center text-xs text-slate-400">No registered students found matching search.</div>
-            ) : (
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-950 text-slate-400 border-b border-slate-850 text-[10px] uppercase font-mono font-bold">
-                    <th className="p-4">Applicant Profile</th>
-                    <th className="p-4">Contact & Phone</th>
-                    <th className="p-4">Paid Subscription</th>
-                    <th className="p-4">onboarding Details</th>
-                    <th className="p-4 text-right">Administrative Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-850/50">
-                  {filteredUsers.map((user, idx) => {
-                    const isPremium = user.premium === true;
-                    return (
-                      <tr key={`${user.email || "user"}-${idx}`} className="hover:bg-slate-850/20 transition">
-                        <td className="p-4 space-y-1">
-                          <div className="font-bold text-white text-sm">{user.fullName || "Draft Profile"}</div>
-                          <div className="text-xs text-slate-400 font-mono">{user.email}</div>
-                        </td>
-                        <td className="p-4 space-y-1">
-                          <div className="text-slate-300 font-medium">{user.phoneNumber || "No Phone set"}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">Registered: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Pending"}</div>
-                        </td>
-                        <td className="p-4">
-                          {isPremium ? (
-                            <div className="space-y-1">
-                              <span className="inline-flex items-center gap-1 bg-[#03C988]/15 border border-[#03C988]/30 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-[#03C988]">
-                                <CheckCircle className="h-3 w-3" /> ₦35,000 Verified
-                              </span>
-                              <div className="text-[9px] text-slate-500 font-mono truncate max-w-[120px]">{user.paymentReference}</div>
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-amber-500 animate-pulse">
-                              <AlertTriangle className="h-3 w-3" /> Unpaid / Pending
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-4 text-xs">
-                          {user.onboarding ? (
-                            <div className="space-y-1.5 max-w-[250px]">
-                              <div><span className="text-slate-500 font-mono text-[9px] uppercase">Goal:</span> <span className="font-bold text-amber-400 text-[10px]">{user.onboarding.degree || "N/A"}</span></div>
-                              <div><span className="text-slate-500 font-mono text-[9px] uppercase">Lang:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.hsk || "N/A"}</span></div>
-                              {user.onboarding.csc && <div><span className="text-slate-500 font-mono text-[9px] uppercase">CSC Type:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.csc}</span></div>}
-                              {user.onboarding.motivation && <div><span className="text-slate-500 font-mono text-[9px] uppercase">Pain Point:</span> <span className="text-red-400 text-[10px] font-medium">{user.onboarding.motivation}</span></div>}
-                              
-                              {/* Automated dispatch status badge */}
-                              <div className="pt-1 flex flex-wrap gap-1">
-                                {user.followupSent ? (
-                                  <span className="inline-flex items-center gap-0.5 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-emerald-400 font-bold" title={user.followupSentAt ? `Sent: ${new Date(user.followupSentAt).toLocaleString()}` : ""}>
-                                    ✉️ Onboarding Follow-up Sent
-                                  </span>
-                                ) : !isPremium ? (
-                                  <span className="inline-flex items-center gap-0.5 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-blue-400 font-bold">
-                                    ⏱️ Auto-Queue Active (Unpaid)
-                                  </span>
-                                ) : null}
+          <div>
+            {/* Instant Premium Access Granting Control Panel */}
+            <div className="bg-slate-950 p-4 border-b border-slate-850 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold font-mono uppercase text-teal-400 block tracking-wide">⚡ Manual License Provisioning Suite</span>
+                <span className="text-[10px] text-slate-400 block">Grant instant, complete workspace authorization bypass to any student email address.</span>
+              </div>
+              <form onSubmit={handleManualGrantAccess} className="flex gap-2 w-full md:w-auto">
+                <input
+                  type="email"
+                  required
+                  value={manualEmail}
+                  onChange={(e) => setManualEmail(e.target.value)}
+                  placeholder="Type student's email..."
+                  className="bg-slate-900 border border-slate-800 text-slate-200 text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-teal-500 w-full md:w-64"
+                />
+                <button
+                  type="submit"
+                  className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition duration-200 cursor-pointer whitespace-nowrap"
+                >
+                  Grant Access
+                </button>
+              </form>
+            </div>
+
+            <div className="overflow-x-auto">
+              {filteredUsers.length === 0 ? (
+                <div className="p-12 text-center text-xs text-slate-400">No registered students found matching search.</div>
+              ) : (
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-950 text-slate-400 border-b border-slate-850 text-[10px] uppercase font-mono font-bold">
+                      <th className="p-4">Applicant Profile</th>
+                      <th className="p-4">Contact & Phone</th>
+                      <th className="p-4">Paid Subscription</th>
+                      <th className="p-4">onboarding Details</th>
+                      <th className="p-4 text-right">Administrative Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850/50">
+                    {filteredUsers.map((user, idx) => {
+                      const isPremium = user.premium === true;
+                      const userEmail = user.email || user.id || `user-${idx}`;
+                      return (
+                        <tr key={`${userEmail}-${idx}`} className="hover:bg-slate-850/20 transition">
+                          <td className="p-4 space-y-1">
+                            <div className="font-bold text-white text-sm">{user.fullName || "Draft Profile"}</div>
+                            <div className="text-xs text-slate-400 font-mono">{userEmail}</div>
+                          </td>
+                          <td className="p-4 space-y-1">
+                            <div className="text-slate-300 font-medium">{user.phoneNumber || "No Phone set"}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">Registered: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "Pending"}</div>
+                          </td>
+                          <td className="p-4">
+                            {isPremium ? (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 bg-[#03C988]/15 border border-[#03C988]/30 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-[#03C988]">
+                                  <CheckCircle className="h-3 w-3" /> ₦35,000 Verified
+                                </span>
+                                <div className="text-[9px] text-slate-500 font-mono truncate max-w-[120px]">{user.paymentReference}</div>
                               </div>
-                            </div>
-                          ) : (
-                            <span className="text-slate-500 italic text-[11px]">No onboarding saved</span>
-                          )}
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex gap-2 justify-end">
-                            {user.onboarding && !isPremium && (
-                              <button 
-                                onClick={() => handleSendFollowUp(user.email)}
-                                className="px-2.5 py-1.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 font-bold text-[10px] rounded-lg transition cursor-pointer flex items-center gap-1"
-                                title="Trigger student pain-point follow-up campaign email"
-                              >
-                                <Mail className="h-3 w-3" /> Follow-Up
-                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-amber-500 animate-pulse">
+                                <AlertTriangle className="h-3 w-3" /> Unpaid / Pending
+                              </span>
                             )}
-                            <button 
-                              onClick={() => handleTogglePremium(user.email)}
-                              className={`px-3 py-1.5 ${isPremium ? "bg-amber-600/10 text-amber-500 border border-amber-500/20 hover:bg-amber-600/20" : "bg-emerald-600/10 text-[#03C988] border border-emerald-500/20 hover:bg-emerald-600/20"} font-bold text-[10px] rounded-lg transition cursor-pointer`}
-                            >
-                              {isPremium ? "Revoke Access" : "Grant Access"}
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteUser(user.email)}
-                              className="p-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-red-400 rounded-lg transition cursor-pointer"
-                              title="Delete user permanently"
-                            >
-                              <Trash2 className="h-4.5 w-4.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
+                          </td>
+                          <td className="p-4 text-xs">
+                            {user.onboarding ? (
+                              <div className="space-y-1.5 max-w-[250px]">
+                                <div><span className="text-slate-500 font-mono text-[9px] uppercase">Goal:</span> <span className="font-bold text-amber-400 text-[10px]">{user.onboarding.degree || "N/A"}</span></div>
+                                <div><span className="text-slate-500 font-mono text-[9px] uppercase">Lang:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.hsk || "N/A"}</span></div>
+                                {user.onboarding.csc && <div><span className="text-slate-500 font-mono text-[9px] uppercase">CSC Type:</span> <span className="text-slate-300 text-[10px]">{user.onboarding.csc}</span></div>}
+                                {user.onboarding.motivation && <div><span className="text-slate-500 font-mono text-[9px] uppercase">Pain Point:</span> <span className="text-red-400 text-[10px] font-medium">{user.onboarding.motivation}</span></div>}
+                                
+                                {/* Automated dispatch status badge */}
+                                <div className="pt-1 flex flex-wrap gap-1">
+                                  {user.followupSent ? (
+                                    <span className="inline-flex items-center gap-0.5 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-emerald-400 font-bold" title={user.followupSentAt ? `Sent: ${new Date(user.followupSentAt).toLocaleString()}` : ""}>
+                                      ✉️ Onboarding Follow-up Sent
+                                    </span>
+                                  ) : !isPremium ? (
+                                    <span className="inline-flex items-center gap-0.5 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded text-[8.5px] font-mono text-blue-400 font-bold">
+                                      ⏱️ Auto-Queue Active (Unpaid)
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-500 italic text-[11px]">No onboarding saved</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex gap-2 justify-end">
+                              {user.onboarding && !isPremium && (
+                                <button 
+                                  onClick={() => handleSendFollowUp(userEmail)}
+                                  className="px-2.5 py-1.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 hover:bg-blue-600/20 font-bold text-[10px] rounded-lg transition cursor-pointer flex items-center gap-1"
+                                  title="Trigger student pain-point follow-up campaign email"
+                                >
+                                  <Mail className="h-3 w-3" /> Follow-Up
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleTogglePremium(userEmail)}
+                                className={`px-3 py-1.5 ${isPremium ? "bg-amber-600/10 text-amber-500 border border-amber-500/20 hover:bg-amber-600/20" : "bg-emerald-600/10 text-[#03C988] border border-emerald-500/20 hover:bg-emerald-600/20"} font-bold text-[10px] rounded-lg transition cursor-pointer`}
+                              >
+                                {isPremium ? "Revoke Access" : "Grant Access"}
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUser(userEmail)}
+                                className="p-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-500/20 text-red-400 rounded-lg transition cursor-pointer"
+                                title="Delete user permanently"
+                              >
+                                <Trash2 className="h-4.5 w-4.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 

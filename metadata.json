@@ -1,6 +1,6 @@
 {
-  "name": "The 2026 DIY China Admissions & AI Verification Portal",
-  "description": "Unlock 100+ Chinese University scholarship listings, generate high-converting SOP drafts, and consult Lao Shi, the 24/7 Admissions AI.",
+  "name": "VerifiedUni Portal",
+  "description": "Unlock 100+ Chinese University scholarship listings, generate high-converting SOP drafts, and consult Lao Shi, the 24/7 Admissions AI on VerifiedUni.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
