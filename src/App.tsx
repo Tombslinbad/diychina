@@ -45,6 +45,15 @@ import { LANGUAGE_INSTITUTES, LanguageInstitute } from "./languageInstitutesData
 import { useCscaStore } from "./lib/cscaStore";
 import { Dashboard } from "./components/Dashboard";
 import { AdminPanel } from "./components/AdminPanel";
+import { ReadinessQuiz } from "./components/ReadinessQuiz";
+import { UniversityMatch } from "./components/UniversityMatch";
+import { DocumentDiagnostic } from "./components/DocumentDiagnostic";
+import { DualApplicationHub } from "./components/DualApplicationHub";
+import { StudyPlanStudio } from "./components/StudyPlanStudio";
+import { InterviewSimulator } from "./components/InterviewSimulator";
+import { VisaAndPreDeparture } from "./components/VisaAndPreDeparture";
+import { FaqSection } from "./components/FaqSection";
+import { FounderStoryModal } from "./components/FounderStoryModal";
 import { Shield } from "lucide-react";
 import heroImg from "./assets/images/china_university_admission_1780294406477.png";
 
@@ -111,6 +120,9 @@ export default function App() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsTab, setTermsTab] = useState<"terms" | "refund">("terms");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [quizScore, setQuizScore] = useState<number | null>(null);
+  const [showFounderStory, setShowFounderStory] = useState(false);
 
   // Tab 1: Directory Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -1135,10 +1147,24 @@ export default function App() {
                 <ShieldCheck className="h-6 w-6 text-amber-500" />
                 <span className="font-display font-black text-sm md:text-base text-white tracking-tight">VerifiedUni</span>
               </div>
-              <nav className="hidden md:flex gap-8 items-center">
-                <a className="text-amber-500 font-bold border-b-2 border-amber-500 text-xs py-1 transition-all" href="#">Home</a>
+              <nav className="hidden md:flex gap-6 items-center">
+                <a className="text-amber-500 font-bold text-xs py-1 transition-all" href="#">Home</a>
+                <button 
+                  onClick={() => setShowQuizModal(true)}
+                  className="text-slate-300 hover:text-amber-400 text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 font-mono font-bold"
+                >
+                  <Sparkles className="h-3 w-3 text-amber-400" />
+                  Free Eligibility Quiz
+                </button>
                 <a className="text-slate-400 text-xs hover:text-amber-500 transition-colors duration-200" href="#accelerator">Accelerator</a>
                 <a className="text-slate-400 text-xs hover:text-amber-500 transition-colors duration-200" href="#pricing">Pricing</a>
+                <a className="text-slate-400 text-xs hover:text-amber-500 transition-colors duration-200" href="#faq">FAQ</a>
+                <button 
+                  onClick={() => setShowFounderStory(true)}
+                  className="text-slate-400 hover:text-amber-400 text-xs transition-colors duration-200 cursor-pointer"
+                >
+                  Founder's Story
+                </button>
               </nav>
               <div className="flex items-center gap-3">
                 <button 
@@ -1159,7 +1185,7 @@ export default function App() {
                   }}
                   className="bg-amber-500 hover:bg-amber-450 hover:scale-105 text-slate-950 font-bold text-xs px-4 py-1.5 rounded-lg transition-all cursor-pointer font-sans"
                 >
-                  Register Now (₦35k sub)
+                  Register Now (₦35k)
                 </button>
               </div>
             </div>
@@ -1173,31 +1199,46 @@ export default function App() {
                   {/* Left Column: Heading and CTA */}
                   <div className="col-span-1 lg:col-span-7 text-center lg:text-left">
                     <div className="inline-block px-4 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full mb-6">
-                      <span className="text-amber-400 font-mono text-[10px] tracking-widest uppercase font-semibold">2026 Direct Enrollment Active</span>
+                      <span className="text-amber-400 font-mono text-[10px] tracking-widest uppercase font-semibold">2026 Chinese Government & Provincial Scholarship Portal</span>
                     </div>
                     <h1 className="font-display text-3xl md:text-5xl font-extrabold text-white mb-6 leading-tight">
-                      Stop Paying Travel Agents <span className="text-amber-400">₦700,000+</span> To Process Your China Student Visa.
+                      Your Direct Path to Studying in China on <span className="text-amber-400">Full Scholarship</span>.
                     </h1>
                     <p className="text-sm md:text-base text-slate-300 mb-8 leading-relaxed">
-                      Gain lifetime access to the private 2026 automated portal that maps out 100+ fully funded universities, provides copy-and-paste AI document engines, and unlocks 3,500 RMB monthly stipends—all on your own terms.
+                      Check your eligibility, match with 53+ verified universities, practice 1,000+ CSCA CBT exam questions, and generate anti-rejection study plans — all without paying ₦700,000+ to travel agents.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center lg:items-start gap-4 justify-center lg:justify-start">
+                      <button 
+                        onClick={() => setShowQuizModal(true)}
+                        className="bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-350 hover:scale-105 transition-all text-slate-950 font-display font-extrabold text-sm md:text-base px-7 py-4 rounded-xl shadow-xl flex items-center gap-2 cursor-pointer w-full sm:w-auto justify-center"
+                      >
+                        <Sparkles className="h-4 w-4 text-slate-950" />
+                        Check My Scholarship Eligibility — Free
+                      </button>
                       <button 
                         onClick={() => {
                           setAuthMode("register");
                           setAuthError("");
                           setShowLogin(true);
                         }}
-                        className="bg-amber-500 hover:bg-amber-450 hover:scale-105 transition-all text-slate-950 font-display font-bold text-sm md:text-base px-8 py-4 rounded-xl shadow-lg flex items-center gap-2 cursor-pointer w-full sm:w-auto justify-center"
+                        className="bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-white font-sans text-xs md:text-sm px-6 py-4 rounded-xl transition-all cursor-pointer w-full sm:w-auto text-center"
                       >
-                        <Sparkles className="h-4 w-4 text-slate-950" />
-                        Get Started & Custom Onboard (₦35,000)
+                        Direct Onboarding (₦35k)
                       </button>
                     </div>
-                    <p className="text-[10px] text-slate-500 flex items-center gap-1.5 font-mono mt-3 justify-center lg:justify-start">
-                      <Sparkles className="h-3 w-3 text-amber-500" />
-                      ⚡ Premium Private License. Includes Lao Shi AI Support & Official Checklists.
-                    </p>
+                    <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-400 font-mono mt-4 justify-center lg:justify-start">
+                      <span className="flex items-center gap-1.5 text-emerald-400">
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        Free 2-minute diagnostic test
+                      </span>
+                      <span>•</span>
+                      <button 
+                        onClick={() => setShowFounderStory(true)}
+                        className="text-amber-400 underline hover:text-amber-300 cursor-pointer font-sans"
+                      >
+                        Read Founder's Story
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Right Column: Hero Graphic Visuals */}
@@ -1310,8 +1351,8 @@ export default function App() {
                     <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition-all">
                       <Search className="h-5 w-5 text-amber-400" />
                     </div>
-                    <h3 className="font-display font-bold text-sm text-white mb-3">The 100+ Live University Directory</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal text-slate-350">Search/filter 100+ elite universities like Tsinghua, Zhejiang, and Harbin by major, track, and deadline.</p>
+                    <h3 className="font-display font-bold text-sm text-white mb-3">53+ Verified University Directory</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal text-slate-350">Search/filter 53+ elite universities like Tsinghua, Zhejiang, and Harbin by major, track, and deadline.</p>
                     <div className="flex flex-wrap gap-1.5">
                       <span className="px-2 py-0.5 bg-slate-900 border border-slate-850 text-slate-300 rounded text-[10px] font-mono font-bold">Tsinghua</span>
                       <span className="px-2 py-0.5 bg-slate-900 border border-slate-850 text-slate-300 rounded text-[10px] font-mono font-bold font-normal">Zhejiang</span>
@@ -1322,7 +1363,7 @@ export default function App() {
                     <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition-all">
                       <FileText className="h-5 w-5 text-amber-400" />
                     </div>
-                    <h3 className="font-display font-bold text-sm text-white mb-3">The Anti-Rejection AI Engine</h3>
+                    <h3 className="font-display font-bold text-sm text-white mb-3">Anti-Rejection AI Engine</h3>
                     <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal">Professional prompt scripts for high-impact SOPs, Research Proposals, and cold emails that convert professors.</p>
                     <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-amber-400">
                       <Sparkles className="h-3 w-3 animate-spin text-amber-400" /> 
@@ -1334,8 +1375,8 @@ export default function App() {
                     <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition-all">
                       <MessageSquare className="h-5 w-5 text-amber-400" />
                     </div>
-                    <h3 className="font-display font-bold text-sm text-white mb-3">24/7 Virtual AI Admissions Consultant</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal">Gemini-powered assistant trained on official consular datasets to answer your specific case questions instantly.</p>
+                    <h3 className="font-display font-bold text-sm text-white mb-3">24/7 AI Admissions Consultant</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal">Lao Shi AI trained on official consular datasets to answer your specific case questions instantly.</p>
                     <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-emerald-405 text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                       Always Online
@@ -1346,15 +1387,10 @@ export default function App() {
                     <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center mb-6 group-hover:bg-amber-500/20 transition-all">
                       <CheckSquare className="h-5 w-5 text-amber-400" />
                     </div>
-                    <h3 className="font-display font-bold text-sm text-white mb-3">The Abuja Consular Navigation Manual</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-4 font-normal">Step-by-step roadmap for MFA Abuja and Lagos document authentication. Know exactly where to go.</p>
-                    <div className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950">
-                      <img 
-                        className="w-full h-16 object-cover opacity-65 grayscale group-hover:grayscale-0 group-hover:opacity-90 transition-all duration-300" 
-                        referrerPolicy="no-referrer"
-                        alt="Abuja Consular Building Blueprint" 
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0qIoxrGj0SKj9nJ6FydFZ16XRplcTCr77pOL8cB7OqqyydKMyasle9OxLSpfNJx7IZGKq9_OOXebHviHcQLNDUVO2nYIdxuVmHLJs_I5scwdeRPRRcWUF6hmE6LQznCS2hGLoRXobnZOh0_-5_f2FfFDrU_oENK3tZR66G7MrkcRCn2hADToU9YNcsfSNpEeynOthZKkEJBzuvERRJax4SdtC0uadktT6mDxUFwHVwtcdK3h8EBlnYvEG2aOBUZAYVz1KcfKU3LlX"
-                      />
+                    <h3 className="font-display font-bold text-sm text-white mb-3">1,000+ CSCA CBT Exam Suite</h3>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-4 font-normal">Practice timed Math, Physics, Chemistry, and Logic exams to guarantee your undergraduate entrance score.</p>
+                    <div className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950 p-2 text-center text-amber-400 font-mono text-[11px] font-bold">
+                      Interactive Timed CBT Testing
                     </div>
                   </div>
                 </div>
@@ -1369,19 +1405,27 @@ export default function App() {
                     <h2 className="font-display text-xl md:text-2xl font-bold text-white text-center mb-8">2026 Direct Admissions Campaign License</h2>
                     <ul className="space-y-4 mb-8 font-sans">
                       <li className="flex justify-between items-center py-2 border-b border-slate-900">
-                        <span className="text-xs md:text-sm text-slate-400">Portal License & University Directory</span>
+                        <span className="text-xs md:text-sm text-slate-400">Portal License & 53+ University Directory</span>
                         <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                       <li className="flex justify-between items-center py-2 border-b border-slate-900">
-                        <span className="text-xs md:text-sm text-slate-400">AI Anti-Rejection Suite</span>
+                        <span className="text-xs md:text-sm text-slate-400">University Match & Eligibility Verification</span>
                         <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                       <li className="flex justify-between items-center py-2 border-b border-slate-900">
-                        <span className="text-xs md:text-sm text-slate-400 font-normal">24/7 Gemini Virtual Consultant</span>
+                        <span className="text-xs md:text-sm text-slate-400">1,000+ CSCA CBT Practice Exam Center</span>
+                        <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
+                      </li>
+                      <li className="flex justify-between items-center py-2 border-b border-slate-900">
+                        <span className="text-xs md:text-sm text-slate-400">AI Anti-Rejection Statement Engine</span>
+                        <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
+                      </li>
+                      <li className="flex justify-between items-center py-2 border-b border-slate-900">
+                        <span className="text-xs md:text-sm text-slate-400 font-normal">24/7 Lao Shi AI Admissions Specialist</span>
                         <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                       <li className="flex justify-between items-center py-2">
-                        <span className="text-xs md:text-sm text-slate-400">Abuja/Lagos Consular Roadmaps</span>
+                        <span className="text-xs md:text-sm text-slate-400">Abuja/Lagos Consular Roadmaps & Doc Diagnostic</span>
                         <span className="text-xs md:text-sm text-amber-400 font-bold bg-amber-500/10 px-2.5 py-1 rounded">INCLUDED</span>
                       </li>
                     </ul>
@@ -1440,38 +1484,92 @@ export default function App() {
                 </div>
               </div>
             </section>
+
+            {/* Section 5: Transparent FAQ Accordion */}
+            <FaqSection />
           </main>
 
           {/* Footer */}
           <footer className="w-full py-12 bg-[#020813] border-t border-slate-900">
-            <div className="flex flex-col md:flex-row justify-between items-center px-6 gap-8 max-w-7xl mx-auto">
-              <div className="flex flex-col gap-2 items-center md:items-start text-center md:text-left">
-                <span className="font-display font-extrabold text-sm text-white">VerifiedUni</span>
-                <p className="text-[10px] text-slate-500 leading-normal">
-                  © 2026 VerifiedUni China Admissions & AI Verification Portal. <br/>
-                  Secure Processing via verified Paystack gateway node.
-                </p>
+            <div className="flex flex-col gap-8 max-w-7xl mx-auto px-6">
+              <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+                <div className="flex flex-col gap-2 items-center md:items-start text-center md:text-left">
+                  <span className="font-display font-extrabold text-sm text-white">VerifiedUni</span>
+                  <p className="text-[10px] text-slate-500 leading-normal">
+                    © 2026 VerifiedUni China Admissions & AI Verification Portal. <br/>
+                    Secure Processing via verified Paystack gateway node.
+                  </p>
+                </div>
+                <div className="flex gap-6 flex-wrap justify-center text-[11px] text-slate-400 font-normal">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowQuizModal(true)}
+                    className="hover:text-amber-400 underline transition-all cursor-pointer bg-transparent border-none text-left"
+                  >
+                    Free Eligibility Quiz
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowFounderStory(true)}
+                    className="hover:text-amber-400 underline transition-all cursor-pointer bg-transparent border-none text-left"
+                  >
+                    Founder's Story
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => { setTermsTab("terms"); setShowTermsModal(true); }}
+                    className="hover:text-amber-400 underline transition-all cursor-pointer bg-transparent border-none text-left"
+                  >
+                    Terms & Conditions
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => { setTermsTab("refund"); setShowTermsModal(true); }}
+                    className="hover:text-amber-400 underline transition-all cursor-pointer bg-transparent border-none text-left"
+                  >
+                    Refund Policy (100% Bond)
+                  </button>
+                  <a className="hover:text-amber-400 underline transition-all font-normal text-slate-350" href="mailto:support@verifieduni.com">Support (support@verifieduni.com)</a>
+                </div>
               </div>
-              <div className="flex gap-6 flex-wrap justify-center text-[11px] text-slate-400 font-normal">
-                <button 
-                  type="button" 
-                  onClick={() => { setTermsTab("terms"); setShowTermsModal(true); }}
-                  className="hover:text-amber-400 underline transition-all cursor-pointer bg-transparent border-none text-left"
-                >
-                  Terms & Conditions
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => { setTermsTab("refund"); setShowTermsModal(true); }}
-                  className="hover:text-amber-400 underline transition-all cursor-pointer bg-transparent border-none text-left"
-                >
-                  Refund Policy (100% Bond)
-                </button>
-                <a className="hover:text-amber-400 underline transition-all" href="#sec">Security Protocols</a>
-                <a className="hover:text-amber-400 underline transition-all font-normal text-slate-350" href="mailto:support@verifieduni.com">Support (support@verifieduni.com)</a>
+
+              {/* Official Disclaimer */}
+              <div className="border-t border-slate-900/80 pt-6 text-center">
+                <p className="text-[10px] text-slate-600 max-w-4xl mx-auto leading-relaxed">
+                  <strong>Official Disclaimer:</strong> VerifiedUni is an independent educational technology and admissions preparation platform. We are not affiliated with, endorsed by, or an official agency of the Chinese Government, the China Scholarship Council (CSC), the Ministry of Education of the People's Republic of China, or the Chinese Embassy in Nigeria. All scholarship quotas and admission decisions are solely made by the respective universities and governing bodies.
+                </p>
               </div>
             </div>
           </footer>
+
+          {/* Modal: Free Scholarship Readiness Quiz */}
+          {showQuizModal && (
+            <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+              <ReadinessQuiz 
+                onComplete={(score, answers) => {
+                  setQuizScore(score);
+                }}
+                onOpenSignup={() => {
+                  setShowQuizModal(false);
+                  setAuthMode("register");
+                  setShowLogin(true);
+                }}
+                onClose={() => setShowQuizModal(false)}
+              />
+            </div>
+          )}
+
+          {/* Modal: Founder's Story */}
+          {showFounderStory && (
+            <FounderStoryModal 
+              onClose={() => setShowFounderStory(false)}
+              onOpenSignup={() => {
+                setShowFounderStory(false);
+                setAuthMode("register");
+                setShowLogin(true);
+              }}
+            />
+          )}
         </div>
       ) : userProfile && !userProfile.premium && !ADMIN_EMAILS.includes(currentUser.toLowerCase()) ? (
         /* ONBOARDING WIZARD SCREEN & PAYWALL ACCESS GATE */
@@ -1975,14 +2073,34 @@ export default function App() {
                           setActiveTab(Tabs.WORKSPACE);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
                           activeTab === Tabs.WORKSPACE
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
                         }`}
                       >
                         <Sparkles className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" />
-                        0. Admissions Workspace (Dashboard)
+                        0. Admissions Dashboard
+                      </button>
+
+                      {/* PHASE 1: DIAGNOSTIC & MATCHING */}
+                      <div className="text-[10px] font-mono text-slate-500 uppercase px-3 pt-3 pb-1 tracking-wider">
+                        Phase 1: Diagnostic & Matching
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab(Tabs.MATCH);
+                          setDrawerOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.MATCH
+                            ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
+                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
+                        }`}
+                      >
+                        <Sparkles className="h-4 w-4 shrink-0 text-amber-400" />
+                        1. University Match Engine
                       </button>
 
                       <button
@@ -1990,59 +2108,29 @@ export default function App() {
                           setActiveTab(Tabs.DIRECTORY);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
                           activeTab === Tabs.DIRECTORY
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
                         }`}
                       >
                         <Search className="h-4 w-4 shrink-0 text-amber-500" />
-                        1. University Directory
+                        2. 53+ University Directory
                       </button>
 
                       <button
                         onClick={() => {
-                          setActiveTab(Tabs.LANGUAGE_SCHOOLS);
+                          setActiveTab(Tabs.DOCUMENTS);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
-                          activeTab === Tabs.LANGUAGE_SCHOOLS
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.DOCUMENTS
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
                         }`}
                       >
-                        <BookOpen className="h-4 w-4 shrink-0 text-emerald-400" />
-                        2. Trade Language Schools
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab(Tabs.PASSPORT);
-                          setDrawerOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
-                          activeTab === Tabs.PASSPORT
-                            ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
-                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
-                        }`}
-                      >
-                        <FileBadge2 className="h-4 w-4 shrink-0 text-amber-400" />
-                        3. Passport Hub
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setActiveTab(Tabs.FLIGHT_VISA);
-                          setDrawerOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
-                          activeTab === Tabs.FLIGHT_VISA
-                            ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
-                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
-                        }`}
-                      >
-                        <Plane className="h-4 w-4 shrink-0 text-cyan-400" />
-                        4. Flight & Visa command
+                        <FileBadge2 className="h-4 w-4 shrink-0 text-cyan-400" />
+                        3. Document Diagnostic
                       </button>
 
                       <button
@@ -2050,31 +2138,117 @@ export default function App() {
                           setActiveTab(Tabs.CSCA_CBT);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
                           activeTab === Tabs.CSCA_CBT
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
                         }`}
                       >
                         <TrendingUp className="h-4 w-4 shrink-0 text-amber-400" />
-                        5. CSCA CBT Exam Center
+                        4. 1,000+ CSCA CBT Simulator
                       </button>
 
-                      <div className="h-px bg-slate-900 my-4"></div>
+                      {/* PHASE 2: DUAL APPLICATION & AI DOCUMENT STUDIO */}
+                      <div className="text-[10px] font-mono text-amber-400/90 uppercase px-3 pt-3 pb-1 tracking-wider">
+                        Phase 2: Dual App & Documents
+                      </div>
 
                       <button
                         onClick={() => {
-                          setActiveTab(Tabs.PROMPT_STATION);
+                          setActiveTab(Tabs.DUAL_APP);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
-                          activeTab === Tabs.PROMPT_STATION
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.DUAL_APP
+                            ? "bg-amber-500/15 border border-amber-500/40 text-amber-400 font-bold"
+                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
+                        }`}
+                      >
+                        <Globe className="h-4 w-4 shrink-0 text-amber-400" />
+                        5. Dual App & Agency Codes
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab(Tabs.STUDY_PLAN_STUDIO);
+                          setDrawerOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.STUDY_PLAN_STUDIO
+                            ? "bg-indigo-500/15 border border-indigo-500/40 text-indigo-400 font-bold"
+                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
+                        }`}
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-indigo-400" />
+                        6. AI Bilingual Study Plan Studio
+                      </button>
+
+                      {/* PHASE 3: INTERVIEWS, VISA & LANDING */}
+                      <div className="text-[10px] font-mono text-purple-400/90 uppercase px-3 pt-3 pb-1 tracking-wider">
+                        Phase 3: Visa, Interview & Landing
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab(Tabs.INTERVIEW_SIM);
+                          setDrawerOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.INTERVIEW_SIM
+                            ? "bg-purple-500/15 border border-purple-500/40 text-purple-400 font-bold"
+                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
+                        }`}
+                      >
+                        <Sparkles className="h-4 w-4 shrink-0 text-purple-400" />
+                        7. AI Mock Interview Simulator
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab(Tabs.VISA_PRE_DEPARTURE);
+                          setDrawerOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.VISA_PRE_DEPARTURE
+                            ? "bg-cyan-500/15 border border-cyan-500/40 text-cyan-400 font-bold"
+                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
+                        }`}
+                      >
+                        <Plane className="h-4 w-4 shrink-0 text-cyan-400" />
+                        8. JW201/202 Visa & Landing
+                      </button>
+
+                      <div className="h-px bg-slate-900 my-3"></div>
+
+                      {/* SPECIALIST UTILITIES */}
+                      <button
+                        onClick={() => {
+                          setActiveTab(Tabs.PASSPORT);
+                          setDrawerOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.PASSPORT
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
                         }`}
                       >
-                        <FileText className="h-4 w-4 shrink-0 text-slate-450" />
-                        AI Document Engine
+                        <FileBadge2 className="h-4 w-4 shrink-0 text-amber-400" />
+                        Passport Fast-Track
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setActiveTab(Tabs.LANGUAGE_SCHOOLS);
+                          setDrawerOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                          activeTab === Tabs.LANGUAGE_SCHOOLS
+                            ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
+                            : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
+                        }`}
+                      >
+                        <BookOpen className="h-4 w-4 shrink-0 text-emerald-400" />
+                        Trade Language Schools
                       </button>
 
                       <button
@@ -2082,7 +2256,7 @@ export default function App() {
                           setActiveTab(Tabs.CONSULTANT);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
                           activeTab === Tabs.CONSULTANT
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
@@ -2097,7 +2271,7 @@ export default function App() {
                           setActiveTab(Tabs.CHECKLIST);
                           setDrawerOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
+                        className={`w-full text-left px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-3 transition cursor-pointer ${
                           activeTab === Tabs.CHECKLIST
                             ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold"
                             : "bg-slate-950 border border-slate-900 text-slate-400 hover:bg-slate-900 hover:text-white"
@@ -2148,6 +2322,106 @@ export default function App() {
           {/* Core Interactive Screen Frame - Full-Width Layout */}
           <div className="w-full min-h-[60vh] transition-all duration-300">
             <AnimatePresence mode="wait">
+              {/* TAB: UNIVERSITY MATCH & ELIGIBILITY */}
+              {activeTab === Tabs.MATCH && (
+                <motion.div
+                  key="tab-match"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <UniversityMatch
+                    onSelectUniversity={(uni) => {
+                      setSelectedUni(uni);
+                      setActiveTab(Tabs.DIRECTORY);
+                    }}
+                    onNavigateToCsca={() => setActiveTab(Tabs.CSCA_CBT)}
+                    onNavigateToDocuments={() => setActiveTab(Tabs.DOCUMENTS)}
+                  />
+                </motion.div>
+              )}
+
+              {/* TAB: DOCUMENT DIAGNOSTIC CENTER */}
+              {activeTab === Tabs.DOCUMENTS && (
+                <motion.div
+                  key="tab-documents"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DocumentDiagnostic
+                    onNavigateToPromptStation={() => setActiveTab(Tabs.PROMPT_STATION)}
+                    onNavigateToChecklist={() => setActiveTab(Tabs.CHECKLIST)}
+                    onNavigateToPassportCheck={() => setActiveTab(Tabs.PASSPORT)}
+                  />
+                </motion.div>
+              )}
+
+              {/* PHASE 2 TAB: DUAL APPLICATION & AGENCY CODE HUB */}
+              {activeTab === Tabs.DUAL_APP && (
+                <motion.div
+                  key="tab-dual-app"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DualApplicationHub
+                    onNavigateToStudyPlan={() => setActiveTab(Tabs.STUDY_PLAN_STUDIO)}
+                    onNavigateToDocuments={() => setActiveTab(Tabs.DOCUMENTS)}
+                    onNavigateToConsultant={() => setActiveTab(Tabs.CONSULTANT)}
+                  />
+                </motion.div>
+              )}
+
+              {/* PHASE 2 TAB: AI STUDY PLAN & RECOMMENDATION LETTER STUDIO */}
+              {activeTab === Tabs.STUDY_PLAN_STUDIO && (
+                <motion.div
+                  key="tab-study-plan-studio"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <StudyPlanStudio
+                    userProfile={userProfile}
+                    onOpenConsultant={() => setActiveTab(Tabs.CONSULTANT)}
+                  />
+                </motion.div>
+              )}
+
+              {/* PHASE 3 TAB: AI MOCK INTERVIEW SIMULATOR */}
+              {activeTab === Tabs.INTERVIEW_SIM && (
+                <motion.div
+                  key="tab-interview-sim"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <InterviewSimulator
+                    onOpenConsultant={() => setActiveTab(Tabs.CONSULTANT)}
+                  />
+                </motion.div>
+              )}
+
+              {/* PHASE 3 TAB: JW201/202 VISA & CHINA LANDING COMMAND */}
+              {activeTab === Tabs.VISA_PRE_DEPARTURE && (
+                <motion.div
+                  key="tab-visa-pre-departure"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <VisaAndPreDeparture
+                    onOpenConsultant={() => setActiveTab(Tabs.CONSULTANT)}
+                  />
+                </motion.div>
+              )}
+
               {/* TAB 1: PASSPORT HUB */}
               {activeTab === Tabs.PASSPORT && (
                   <motion.div
@@ -4521,6 +4795,7 @@ export default function App() {
                     transition={{ duration: 0.2 }}
                   >
                     <AdminPanel 
+                      currentUser={currentUser}
                       onBack={() => setActiveTab(Tabs.WORKSPACE)}
                       addDevLog={addDevLog}
                     />

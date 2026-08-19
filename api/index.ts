@@ -14,7 +14,7 @@ import { doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "firebase/fi
 import { UNIVERSITIES } from "../src/universitiesData.js";
 import { CSCA_MATH_QUESTIONS } from "../src/cscaQuestionsData.js";
 import { LANGUAGE_INSTITUTES } from "../src/languageInstitutesData.js";
-import { sendSystemEmail, getOtpTemplate, getReceiptTemplate, getEducationFollowUpTemplate } from "../src/lib/emailService.js";
+import { sendSystemEmail, getOtpTemplate, getReceiptTemplate, getEducationFollowUpTemplate, getBroadcastTemplate } from "../src/lib/emailService.js";
 import webhookRouter from "../src/routes/webhook.js";
 
 const app = express();
@@ -272,66 +272,105 @@ app.post("/api/auth/save-onboarding", async (req, res) => {
   }
 });
 
-// --- ADMIN CONTROL PANEL DIRECT API HOOKS ---
+// --- ADMIN CONTROL PANEL DIRECT API HOOKS & SECURITY MIDDLEWARE ---
 
-// Get all sales metrics & users list
-app.get("/api/admin/users", async (req, res) => {
+const ADMIN_EMAILS = [
+  "igwev2956@gmail.com",
+  "admin@verifieduni.com"
+];
+
+function isAdmin(email: string): boolean {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
+
+// Admin Security Middleware: Verifies caller's authorization header or email parameter
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const adminEmail = String(
+    req.headers["x-admin-email"] || 
+    req.headers["x-admin-key"] || 
+    req.query.adminEmail || 
+    req.body.adminEmail || 
+    ""
+  ).trim().toLowerCase();
+
+  if (!adminEmail || !isAdmin(adminEmail)) {
+    return res.status(403).json({
+      error: "Access Forbidden: Administrator authorization required.",
+      code: "ADMIN_AUTH_REQUIRED"
+    });
+  }
+  next();
+};
+
+// 1. Get all sales metrics & users list (Pure Read - No unintended side-effects)
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
   try {
     const colRef = collection(db, "users");
     const snapshot = await getDocs(colRef);
-    const users: any[] = [];
+    const usersMap = new Map<string, any>();
     
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
-      const idClean = docSnap.id.replace(DB_SECRET_SUFFIX, "");
-      users.push({ ...data, id: idClean });
+      const rawId = docSnap.id;
+      const idClean = rawId.replace(DB_SECRET_SUFFIX, "");
+      const email = (data.email || idClean).trim().toLowerCase();
+      
+      // If we already have a record for this email, merge/keep the more complete one
+      if (usersMap.has(email)) {
+        const existing = usersMap.get(email);
+        usersMap.set(email, {
+          ...existing,
+          ...data,
+          id: email,
+          email: email,
+          premium: existing.premium || data.premium,
+          onboarding: data.onboarding || existing.onboarding
+        });
+      } else {
+        usersMap.set(email, { ...data, id: email, email });
+      }
     });
 
-    // Automatically check for any unpaid registered users who completed onboarding and send their paints-point follow-up
-    for (let u of users) {
-      if (!u.premium && u.onboarding && !u.followupSent) {
-        try {
-          console.log(`[AUTOMATED SYSTEM AUDIT] Triggering email follow-up for pending lead: ${u.email}`);
-          const mailHtml = getEducationFollowUpTemplate(u.fullName || "Applicant Portfolio", u.email, u.onboarding);
-          await sendSystemEmail(
-            u.email,
-            `⚠️ Strategic Priority Session Setup: Your ${u.onboarding.degree === "Bsc" ? "BSc Target" : u.onboarding.degree === "Masters" ? "Master's Target" : "Mandarin Study"} Admission Suite Details Urgently Pending`,
-            mailHtml
-          );
-          
-          u.followupSent = true;
-          u.followupSentAt = new Date().toISOString();
-          
-          const userDocRef = doc(db, "users", `${u.email}${DB_SECRET_SUFFIX}`);
-          await setDoc(userDocRef, {
-            uid: u.uid || u.email,
-            email: u.email,
-            fullName: u.fullName || "",
-            phoneNumber: u.phoneNumber || "",
-            premium: u.premium || false,
-            onboarding: u.onboarding,
-            createdAt: u.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            signupStep: u.signupStep || "payment_pending",
-            followupSent: true,
-            followupSentAt: u.followupSentAt
-          });
-          console.log(`[AUTOMATED SYSTEM SUCCESS] Successfully saved follow-up status for: ${u.email}`);
-        } catch (e) {
-          console.error("Auto follow-up error inside admin query:", e);
-        }
-      }
-    }
+    const users = Array.from(usersMap.values());
 
-    return res.json({ users });
+    // Compute accurate financial metrics
+    let totalRevenue = 0;
+    let totalPremium = 0;
+    let followupPendingCount = 0;
+
+    users.forEach((u) => {
+      if (u.premium) {
+        totalPremium++;
+        // If payment was verified via Paystack or real checkout, count ₦35,000; if administrative zero waiver, count 0
+        if (u.paymentReference && !u.paymentReference.startsWith("ADMIN-GRANTED-WAIVER")) {
+          totalRevenue += 35000;
+        }
+      } else if (u.onboarding && !u.followupSent) {
+        followupPendingCount++;
+      }
+    });
+
+    const conversionRate = users.length > 0 ? ((totalPremium / users.length) * 100).toFixed(1) : "0";
+
+    return res.json({ 
+      users,
+      metrics: {
+        totalReg: users.length,
+        totalPremium,
+        totalRevenue,
+        conversionRate,
+        followupPendingCount
+      }
+    });
   } catch (err: any) {
     console.error("Admin retrieve users error:", err);
     return res.status(500).json({ error: "Failed retrieving users database.", details: err?.message });
   }
 });
 
-// Explicit POST endpoint to manually trigger beautiful pain-points email
-app.post("/api/admin/send-followup", async (req, res) => {
+// 2. Explicit POST endpoint to manually trigger single student email follow-up
+app.post("/api/admin/send-followup", requireAdmin, async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   if (!email) {
     return res.status(400).json({ error: "Email identifying parameter is required." });
@@ -372,8 +411,150 @@ app.post("/api/admin/send-followup", async (req, res) => {
   }
 });
 
-// Grant or revoke premium subscription (₦35,000) status manually
-app.post("/api/admin/toggle-premium", async (req, res) => {
+// 3. Explicit Batch Follow-up Dispatcher (controlled by button in UI)
+app.post("/api/admin/send-batch-followup", requireAdmin, async (req, res) => {
+  try {
+    const colRef = collection(db, "users");
+    const snapshot = await getDocs(colRef);
+    let countDispatched = 0;
+    
+    for (const docSnap of snapshot.docs) {
+      const u = docSnap.data();
+      if (!u.premium && u.onboarding && !u.followupSent && u.email) {
+        try {
+          const mailHtml = getEducationFollowUpTemplate(u.fullName || "Applicant Portfolio", u.email, u.onboarding);
+          await sendSystemEmail(
+            u.email,
+            `⚠️ Strategic Priority Session Setup: Your ${u.onboarding.degree === "Bsc" ? "BSc Target" : u.onboarding.degree === "Masters" ? "Master's Target" : "Mandarin Study"} Admission Suite Details Urgently Pending`,
+            mailHtml
+          );
+
+          const userDocRef = doc(db, "users", `${u.email}${DB_SECRET_SUFFIX}`);
+          await setDoc(userDocRef, {
+            ...u,
+            followupSent: true,
+            followupSentAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          countDispatched++;
+        } catch (mailErr) {
+          console.error(`Failed batch follow-up for ${u.email}:`, mailErr);
+        }
+      }
+    }
+
+    return res.json({ 
+      status: "success", 
+      message: `Successfully dispatched follow-up emails to ${countDispatched} pending applicant(s).`,
+      countDispatched 
+    });
+  } catch (err: any) {
+    console.error("Admin batch send followup error:", err);
+    return res.status(500).json({ error: "Failed batch email dispatch.", details: err?.message });
+  }
+});
+
+// 4. Broadcast Announcement Studio (Cohort-Wide / Segmented)
+app.post("/api/admin/broadcast-email", requireAdmin, async (req, res) => {
+  const { audience, customEmail, subject, messageBody, actionLabel, actionUrl } = req.body;
+
+  if (!subject || !messageBody) {
+    return res.status(400).json({ error: "Subject and Message Body are required for broadcasts." });
+  }
+
+  try {
+    let targetEmails: { email: string; name: string }[] = [];
+
+    if (audience === "custom" && customEmail) {
+      targetEmails.push({ email: customEmail.trim().toLowerCase(), name: "Scholar" });
+    } else {
+      const colRef = collection(db, "users");
+      const snapshot = await getDocs(colRef);
+
+      snapshot.forEach((docSnap) => {
+        const u = docSnap.data();
+        if (!u.email) return;
+        const isPrem = !!u.premium;
+        if (audience === "all") {
+          targetEmails.push({ email: u.email, name: u.fullName || "Candidate" });
+        } else if (audience === "premium" && isPrem) {
+          targetEmails.push({ email: u.email, name: u.fullName || "Subscriber" });
+        } else if (audience === "leads" && !isPrem) {
+          targetEmails.push({ email: u.email, name: u.fullName || "Applicant" });
+        }
+      });
+    }
+
+    let dispatchedCount = 0;
+    for (const target of targetEmails) {
+      try {
+        const html = getBroadcastTemplate(target.name, subject, messageBody, actionUrl, actionLabel);
+        await sendSystemEmail(target.email, subject, html);
+        dispatchedCount++;
+      } catch (err) {
+        console.error(`Failed sending broadcast to ${target.email}:`, err);
+      }
+    }
+
+    // Log the broadcast event in admin_broadcasts
+    const broadcastId = "BC-" + Date.now();
+    await setDoc(doc(db, "admin_broadcasts", broadcastId), {
+      broadcastId,
+      subject,
+      audience,
+      dispatchedCount,
+      totalTargeted: targetEmails.length,
+      createdAt: new Date().toISOString()
+    });
+
+    return res.json({
+      status: "success",
+      message: `Broadcast successfully sent to ${dispatchedCount} recipient(s).`,
+      dispatchedCount,
+      totalTargeted: targetEmails.length
+    });
+  } catch (err: any) {
+    console.error("Admin broadcast error:", err);
+    return res.status(500).json({ error: "Failed to dispatch broadcast campaign.", details: err?.message });
+  }
+});
+
+// 5. Update student profile details & onboarding state
+app.post("/api/admin/user/update", requireAdmin, async (req, res) => {
+  const { email, fullName, phoneNumber, premium, onboarding, signupStep, resetOnboarding } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: "Target student email is required." });
+  }
+
+  try {
+    const userDocRef = doc(db, "users", `${email.trim().toLowerCase()}${DB_SECRET_SUFFIX}`);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      return res.status(404).json({ error: "Student account not found." });
+    }
+
+    const current = userDoc.data();
+    const updated = {
+      ...current,
+      fullName: fullName !== undefined ? fullName : current.fullName,
+      phoneNumber: phoneNumber !== undefined ? phoneNumber : current.phoneNumber,
+      premium: premium !== undefined ? premium : current.premium,
+      signupStep: signupStep !== undefined ? signupStep : current.signupStep,
+      onboarding: resetOnboarding ? null : (onboarding !== undefined ? onboarding : current.onboarding),
+      updatedAt: new Date().toISOString()
+    };
+
+    await setDoc(userDocRef, updated);
+    return res.json({ status: "success", user: updated });
+  } catch (err: any) {
+    console.error("Admin update student profile error:", err);
+    return res.status(500).json({ error: "Failed to update student profile.", details: err?.message });
+  }
+});
+
+// 6. Grant or revoke premium subscription status manually
+app.post("/api/admin/toggle-premium", requireAdmin, async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   if (!email) {
     return res.status(400).json({ error: "Email identifying parameter is required." });
@@ -390,7 +571,6 @@ app.post("/api/admin/toggle-premium", async (req, res) => {
       userData = userDoc.data();
       newPremium = !userData.premium;
     } else {
-      // If user profile doesn't exist yet, we auto-create a premium profile
       userData = {
         uid: email,
         email: email,
@@ -402,22 +582,42 @@ app.post("/api/admin/toggle-premium", async (req, res) => {
       newPremium = true;
     }
 
+    const ref = newPremium ? (userData.paymentReference || "ADMIN-GRANTED-WAIVER-" + Date.now()) : "";
+
     await setDoc(userDocRef, {
       ...userData,
       premium: newPremium,
-      paymentReference: newPremium ? (userData.paymentReference || "ADMIN-GRANTED-" + Date.now()) : "",
+      paymentReference: ref,
       updatedAt: new Date().toISOString()
     });
 
-    return res.json({ status: "success", premium: newPremium });
+    // Record into transactions ledger
+    if (newPremium) {
+      const txRef = doc(db, "transactions", ref);
+      await setDoc(txRef, {
+        reference: ref,
+        email: email,
+        fullName: userData.fullName || "Granted Applicant",
+        phoneNumber: userData.phoneNumber || "",
+        amount: 0,
+        currency: "NGN",
+        status: "success",
+        channel: "admin_manual_grant",
+        paidAt: new Date().toISOString(),
+        verifiedAt: new Date().toISOString(),
+        verifiedBy: "admin_panel"
+      });
+    }
+
+    return res.json({ status: "success", premium: newPremium, paymentReference: ref });
   } catch (err: any) {
     console.error("Admin toggle premium error:", err);
     return res.status(500).json({ error: "Failed to toggle subscription state.", details: err?.message });
   }
 });
 
-// Irreversibly delete user
-app.post("/api/admin/delete-user", async (req, res) => {
+// 7. Irreversibly delete user
+app.post("/api/admin/delete-user", requireAdmin, async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   if (!email) {
     return res.status(400).json({ error: "Email is required to purge account." });
@@ -433,8 +633,171 @@ app.post("/api/admin/delete-user", async (req, res) => {
   }
 });
 
+// 8. Transactions & Paystack Ledger Reconciliation
+app.get("/api/admin/transactions", requireAdmin, async (req, res) => {
+  try {
+    const txCol = collection(db, "transactions");
+    const txSnap = await getDocs(txCol);
+    const transactions: any[] = [];
+
+    txSnap.forEach((docSnap) => {
+      transactions.push(docSnap.data());
+    });
+
+    // If transactions collection is sparse, also pull from users with paymentReference to guarantee full audit history
+    const userCol = collection(db, "users");
+    const userSnap = await getDocs(userCol);
+    
+    userSnap.forEach((docSnap) => {
+      const u = docSnap.data();
+      if (u.paymentReference && !transactions.some(t => t.reference === u.paymentReference)) {
+        const isWaiver = u.paymentReference.startsWith("ADMIN-GRANTED-WAIVER");
+        transactions.push({
+          reference: u.paymentReference,
+          email: u.email,
+          fullName: u.fullName || "Verified User",
+          phoneNumber: u.phoneNumber || "",
+          amount: isWaiver ? 0 : 35000,
+          currency: "NGN",
+          status: "success",
+          channel: isWaiver ? "admin_manual_grant" : "paystack",
+          paidAt: u.createdAt || new Date().toISOString(),
+          verifiedAt: u.updatedAt || new Date().toISOString(),
+          verifiedBy: isWaiver ? "admin_panel" : "paystack_api"
+        });
+      }
+    });
+
+    transactions.sort((a, b) => {
+      const timeA = new Date(a.paidAt || a.verifiedAt || 0).getTime();
+      const timeB = new Date(b.paidAt || b.verifiedAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    return res.json({ transactions });
+  } catch (err: any) {
+    console.error("Admin retrieve transactions error:", err);
+    return res.status(500).json({ error: "Failed retrieving transactions database.", details: err?.message });
+  }
+});
+
+// 9. CSCA Exam Cohort Analytics & Performance Monitoring
+app.get("/api/admin/csca/analytics", requireAdmin, async (req, res) => {
+  try {
+    // 1. Check global attempts collection
+    const globalCol = collection(db, "csca_global_attempts");
+    const globalSnap = await getDocs(globalCol);
+    let attempts: any[] = [];
+
+    globalSnap.forEach((docSnap) => {
+      attempts.push(docSnap.data());
+    });
+
+    // 2. If global attempts is empty, aggregate across user subcollections
+    if (attempts.length === 0) {
+      const usersCol = collection(db, "users");
+      const userSnap = await getDocs(usersCol);
+      for (const uDoc of userSnap.docs) {
+        const emailKey = uDoc.id.replace(DB_SECRET_SUFFIX, "");
+        const uAttemptsCol = collection(db, "users", uDoc.id, "csca_user_attempts");
+        const uAttemptsSnap = await getDocs(uAttemptsCol);
+        uAttemptsSnap.forEach((attDoc) => {
+          const att = attDoc.data();
+          attempts.push({ ...att, email: emailKey, fullName: uDoc.data().fullName || emailKey });
+        });
+      }
+    }
+
+    // Compute cohort statistics
+    const totalAttempts = attempts.length;
+    let totalScoreSum = 0;
+    let passedCount = 0;
+    let mathScoreSum = 0, mathCount = 0;
+    let phyScoreSum = 0, phyCount = 0;
+    let chemScoreSum = 0, chemCount = 0;
+    let chineseScoreSum = 0, chineseCount = 0;
+
+    attempts.forEach((a) => {
+      const pct = Number(a.percentage ?? 0);
+      totalScoreSum += pct;
+      if (pct >= 70) passedCount++;
+
+      if (a.subjectBreakdown) {
+        if (a.subjectBreakdown.mathematics?.total) {
+          mathScoreSum += (a.subjectBreakdown.mathematics.score / a.subjectBreakdown.mathematics.total) * 100;
+          mathCount++;
+        }
+        if (a.subjectBreakdown.physicsChemistry?.total) {
+          phyScoreSum += (a.subjectBreakdown.physicsChemistry.score / a.subjectBreakdown.physicsChemistry.total) * 100;
+          phyCount++;
+        }
+        if (a.subjectBreakdown.academicChinese?.total) {
+          chineseScoreSum += (a.subjectBreakdown.academicChinese.score / a.subjectBreakdown.academicChinese.total) * 100;
+          chineseCount++;
+        }
+      }
+    });
+
+    const averageScore = totalAttempts > 0 ? Math.round(totalScoreSum / totalAttempts) : 0;
+    const passRate = totalAttempts > 0 ? Math.round((passedCount / totalAttempts) * 100) : 0;
+
+    attempts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    return res.json({
+      totalAttempts,
+      averageScore,
+      passRate,
+      subjectAverages: {
+        math: mathCount > 0 ? Math.round(mathScoreSum / mathCount) : 0,
+        physics: phyCount > 0 ? Math.round(phyScoreSum / phyCount) : 0,
+        chinese: chineseCount > 0 ? Math.round(chineseScoreSum / chineseCount) : 0
+      },
+      recentAttempts: attempts.slice(0, 50)
+    });
+  } catch (err: any) {
+    console.error("Admin CSCA analytics error:", err);
+    return res.status(500).json({ error: "Failed calculating CSCA analytics.", details: err?.message });
+  }
+});
+
+// 10. Database Re-Seed & Synchronization Tool
+app.post("/api/admin/system/reseed", requireAdmin, async (req, res) => {
+  try {
+    console.log("[ADMIN ACTION] Forcing full system re-seed of Universities, Questions, and Institutes...");
+    
+    // Seed universities
+    for (const uni of UNIVERSITIES) {
+      await setDoc(doc(db, "universities", uni.id), { ...uni, seedingToken: DB_SECRET_SUFFIX });
+    }
+
+    // Seed language institutes
+    for (const inst of LANGUAGE_INSTITUTES) {
+      await setDoc(doc(db, "language_institutes", inst.id), { ...inst, seedingToken: DB_SECRET_SUFFIX });
+    }
+
+    // Seed 1,000 questions (250 per subject)
+    const subjects: ("math" | "physics" | "chemistry" | "professional_chinese")[] = ["math", "physics", "chemistry", "professional_chinese"];
+    let qCount = 0;
+    for (const sub of subjects) {
+      const generated = generateCSCAQuestions(sub, 250);
+      for (const q of generated) {
+        await setDoc(doc(db, "csca_mock_questions", q.questionId), { ...q, seedingToken: DB_SECRET_SUFFIX });
+        qCount++;
+      }
+    }
+
+    return res.json({
+      status: "success",
+      message: `Database synchronized successfully! ${UNIVERSITIES.length} universities, ${LANGUAGE_INSTITUTES.length} language schools, and ${qCount} CSCA questions cataloged in Cloud Firestore.`
+    });
+  } catch (err: any) {
+    console.error("Admin re-seed failure:", err);
+    return res.status(500).json({ error: "Failed to synchronize system collections.", details: err?.message });
+  }
+});
+
 // Create or update a university document in Firestore
-app.post("/api/admin/university/save", async (req, res) => {
+app.post("/api/admin/university/save", requireAdmin, async (req, res) => {
   const uni = req.body.university;
   if (!uni || !uni.id) {
     return res.status(400).json({ error: "University record body and unique ID are required." });
@@ -451,7 +814,7 @@ app.post("/api/admin/university/save", async (req, res) => {
 });
 
 // Delete university document
-app.post("/api/admin/university/delete", async (req, res) => {
+app.post("/api/admin/university/delete", requireAdmin, async (req, res) => {
   const id = req.body.id;
   if (!id) {
     return res.status(400).json({ error: "University ID is required." });
@@ -468,7 +831,7 @@ app.post("/api/admin/university/delete", async (req, res) => {
 });
 
 // Create or update a CBT questions document
-app.post("/api/admin/question/save", async (req, res) => {
+app.post("/api/admin/question/save", requireAdmin, async (req, res) => {
   const q = req.body.question;
   if (!q || !q.questionId) {
     return res.status(400).json({ error: "Question record body and questionId are required." });
@@ -485,7 +848,7 @@ app.post("/api/admin/question/save", async (req, res) => {
 });
 
 // Delete CBT question document
-app.post("/api/admin/question/delete", async (req, res) => {
+app.post("/api/admin/question/delete", requireAdmin, async (req, res) => {
   const questionId = req.body.questionId;
   if (!questionId) {
     return res.status(400).json({ error: "Question ID is required." });
@@ -502,7 +865,7 @@ app.post("/api/admin/question/delete", async (req, res) => {
 });
 
 // Create or update a Language school document
-app.post("/api/admin/language-institute/save", async (req, res) => {
+app.post("/api/admin/language-institute/save", requireAdmin, async (req, res) => {
   const inst = req.body.institute;
   if (!inst || !inst.id) {
     return res.status(400).json({ error: "Institute record body and ID are required." });
@@ -519,7 +882,7 @@ app.post("/api/admin/language-institute/save", async (req, res) => {
 });
 
 // Delete Language school document
-app.post("/api/admin/language-institute/delete", async (req, res) => {
+app.post("/api/admin/language-institute/delete", requireAdmin, async (req, res) => {
   const id = req.body.id;
   if (!id) {
     return res.status(400).json({ error: "Language school ID is required." });
@@ -694,6 +1057,25 @@ app.get("/api/verify-payment", async (req, res) => {
         updatedAt: new Date().toISOString()
       };
       await setDoc(userRef, profileData);
+
+      // Record to transactions collection for admin reconciliation
+      try {
+        await setDoc(doc(db, "transactions", reference), {
+          reference,
+          email: emailToUse,
+          fullName: nameInput || "Sandbox Student",
+          phoneNumber: phoneInput || "",
+          amount: 35000,
+          currency: "NGN",
+          status: "success",
+          channel: "sandbox_simulator",
+          paidAt: new Date().toISOString(),
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: "sandbox_simulator"
+        });
+      } catch (txErr) {
+        console.warn("Failed saving sandbox transaction ledger record:", txErr);
+      }
       
       sendSystemEmail(emailToUse, "Your Lifetime Admission Portals Receipt - Verified!", getReceiptTemplate(emailToUse, reference))
         .catch((e) => console.error("[EMAIL ERROR] Simulated trigger failed:", e));
@@ -741,6 +1123,26 @@ app.get("/api/verify-payment", async (req, res) => {
         updatedAt: new Date().toISOString()
       };
       await setDoc(userRef, profileData);
+
+      // Record to transactions collection
+      try {
+        await setDoc(doc(db, "transactions", reference), {
+          reference,
+          email: verifiedEmail,
+          fullName: finalName,
+          phoneNumber: finalPhone,
+          amount: (paystackData.data.amount ? paystackData.data.amount / 100 : 35000),
+          currency: paystackData.data.currency || "NGN",
+          status: "success",
+          channel: paystackData.data.channel || "paystack",
+          paidAt: paystackData.data.paid_at || new Date().toISOString(),
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: "paystack_api"
+        });
+      } catch (txErr) {
+        console.warn("Failed saving paystack transaction ledger record:", txErr);
+      }
+
       console.log(`[PAYSTACK VERIFIED SUCCESS] Upgraded ${verifiedEmail} to premium with reference ${reference}`);
       
       sendSystemEmail(verifiedEmail, "Your Lifetime Admission Portals Receipt - Verified!", getReceiptTemplate(verifiedEmail, reference))
@@ -886,6 +1288,16 @@ app.post("/api/csca/submit-attempt", async (req, res) => {
 
     const attemptDocRef = doc(db, "users", `${emailKey}${DB_SECRET_SUFFIX}`, "csca_user_attempts", attemptId);
     await setDoc(attemptDocRef, attemptData);
+
+    // Also write to global collection for instant admin analytics
+    try {
+      await setDoc(doc(db, "csca_global_attempts", attemptId), {
+        ...attemptData,
+        email: emailKey
+      });
+    } catch (gErr) {
+      console.warn("Global attempt log failed:", gErr);
+    }
 
     console.log(`[CSCA PRACTICE ATTEMPT LOGGED] Saved attempt ${attemptId} for student ${emailKey}. Score: ${score}/${totalQuestions}.`);
     return res.json({ status: "success", attemptId, data: attemptData });

@@ -288,6 +288,70 @@ export function getEducationFollowUpTemplate(fullName: string, email: string, on
   `;
 }
 
+// Render an official Administrative Broadcast / Notification HTML Template
+export function getBroadcastTemplate(recipientName: string, subject: string, messageBody: string, callToActionUrl?: string, actionLabel?: string): string {
+  const portalUrl = callToActionUrl || "https://ais-pre-xrgu47rdpe4dysd7ps7azn-235027986297.europe-west1.run.app";
+  const label = actionLabel || "Open VerifiedUni Portal";
+
+  // Convert linebreaks to paragraphs/breaks safely
+  const formattedBody = messageBody
+    .split("\n\n")
+    .map(p => `<p class="paragraph">${p.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #020813; margin: 0; padding: 0; color: #ffffff; }
+        .wrapper { max-width: 600px; margin: 30px auto; padding: 20px; }
+        .branding-header { text-align: center; margin-bottom: 24px; }
+        .branding-title { font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; }
+        .branding-sub { font-size: 10px; font-family: monospace; color: #f59e0b; font-weight: bold; text-transform: uppercase; margin-top: 4px; letter-spacing: 2px; }
+        .main-card { background-color: #0b192c; padding: 32px; border-radius: 16px; border: 1px solid #1e293b; box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5); }
+        .priority-badge { background-color: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 100px; padding: 6px 14px; font-size: 10px; font-family: monospace; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 20px; }
+        .salutation { font-size: 18px; font-weight: 700; color: #ffffff; margin-top: 0; margin-bottom: 16px; }
+        .paragraph { font-size: 14px; color: #cbd5e1; line-height: 1.7; margin-bottom: 16px; }
+        .action-button-wrapper { text-align: center; margin-top: 32px; margin-bottom: 16px; }
+        .btn-action { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff !important; text-decoration: none; padding: 13px 34px; border-radius: 10px; font-size: 13px; font-weight: bold; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35); }
+        .disputed-footer { text-align: center; margin-top: 30px; font-size: 11px; color: #475569; line-height: 1.6; border-top: 1px solid #111c2d; padding-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="wrapper">
+        <div class="branding-header">
+          <div class="branding-title">VerifiedUni</div>
+          <div class="branding-sub">Official Academic & Consular Dispatch</div>
+        </div>
+        <div class="main-card">
+          <div style="text-align: center;">
+            <span class="priority-badge">📢 Official Cohort Announcement</span>
+          </div>
+          
+          <h3 class="salutation">Hello ${recipientName || "Scholar"},</h3>
+          
+          ${formattedBody}
+
+          <div class="action-button-wrapper">
+            <a href="${portalUrl}" class="btn-action" target="_blank">${label}</a>
+          </div>
+        </div>
+        
+        <div class="disputed-footer">
+          © 2026 VerifiedUni Administrative Desk. All Rights Reserved.<br>
+          Chinese Government CSC & Provincial Scholarship Admissions Suite.<br>
+          <span style="color: #334155; font-size: 10px;">This administrative broadcast was dispatched to registered candidates on VerifiedUni.</span>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 // Helper to parse and strictly format the Resend "from" email header
 // Handles surrounding quotes, missing angle brackets, missing names, or malformed inputs
 function getFormattedResendFrom(): string {

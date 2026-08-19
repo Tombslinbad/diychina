@@ -7,6 +7,8 @@
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
+        "fullName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
         "premium": { "type": "boolean" },
         "createdAt": { "type": "string" },
         "updatedAt": { "type": "string" },
@@ -14,12 +16,60 @@
       },
       "required": ["uid", "email", "premium", "createdAt"]
     },
+    "Transaction": {
+      "title": "Payment Transaction Ledger",
+      "description": "Settled Paystack transactions and admin waivers",
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string" },
+        "channel": { "type": "string" },
+        "paidAt": { "type": "string" },
+        "verifiedAt": { "type": "string" }
+      },
+      "required": ["reference", "email", "amount", "status"]
+    },
+    "CSCAGlobalAttempt": {
+      "title": "CSCA CBT Global Attempt Record",
+      "description": "Aggregated exam attempts for cohort analytics",
+      "type": "object",
+      "properties": {
+        "attemptId": { "type": "string" },
+        "email": { "type": "string" },
+        "fullName": { "type": "string" },
+        "totalScore": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "percentage": { "type": "number" },
+        "elapsedSeconds": { "type": "number" },
+        "submittedAt": { "type": "string" }
+      },
+      "required": ["attemptId", "email", "totalScore", "percentage"]
+    },
+    "AdminBroadcast": {
+      "title": "Admin Broadcast Event Log",
+      "description": "Log of email announcements dispatched to candidates",
+      "type": "object",
+      "properties": {
+        "broadcastId": { "type": "string" },
+        "subject": { "type": "string" },
+        "audience": { "type": "string" },
+        "dispatchedCount": { "type": "number" },
+        "totalTargeted": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["broadcastId", "subject", "audience", "createdAt"]
+    },
     "University": {
       "title": "Chinese University Detail",
       "description": "University records for CSC scholarship matching",
       "type": "object",
       "properties": {
-        "universityId": { "type": "string" },
+        "id": { "type": "string" },
         "name": { "type": "string" },
         "agencyCode": { "type": "string" },
         "cscTypeA": { "type": "boolean" },
@@ -32,7 +82,7 @@
         "city": { "type": "string" },
         "ranking": { "type": "number" }
       },
-      "required": ["name", "agencyCode", "stipendMasters", "stipendPhD"]
+      "required": ["name", "agencyCode"]
     },
     "CSCAMockQuestion": {
       "title": "CSCA Mock CBT Question",
@@ -47,7 +97,7 @@
         "correctOption": { "type": "string", "enum": ["A", "B", "C", "D"] },
         "explanation": { "type": "string" }
       },
-      "required": ["questionId", "subject", "medium", "questionText", "options", "correctOption"]
+      "required": ["questionId", "subject", "questionText", "options", "correctOption"]
     },
     "LanguageInstitute": {
       "title": "Business Language Training School",
@@ -61,13 +111,25 @@
         "startDates": { "type": "array" },
         "applicationLink": { "type": "string" }
       },
-      "required": ["id", "name", "tuitionRmb", "location", "startDates"]
+      "required": ["id", "name", "tuitionRmb"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "User profiles who registered / paid for the China Admissions portal"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Financial ledger transactions verified via Paystack and Admin desk"
+    },
+    "/csca_global_attempts/{attemptId}": {
+      "schema": "CSCAGlobalAttempt",
+      "description": "Global log of CSCA mock test performance"
+    },
+    "/admin_broadcasts/{broadcastId}": {
+      "schema": "AdminBroadcast",
+      "description": "Records of official consular announcements dispatched"
     },
     "/universities/{universityId}": {
       "schema": "University",

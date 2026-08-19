@@ -107,7 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               VerifiedUni Admissions & Verification Center
             </h1>
             <p className="text-xs md:text-sm text-slate-400 max-w-2xl leading-relaxed">
-              Unlock West Africa's premium diagnostic panel syncing automated CSC Type A/B agency credentials, Abuja legalization timelines, and short-term logistics Mandarin pathways.
+              Unlock West Africa's premium diagnostic panel syncing automated CSC Type A/B agency credentials, Abuja legalization timelines, and anti-rejection document diagnostics.
             </p>
           </div>
 
@@ -127,6 +127,45 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Quick Hub Navigation Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-900 relative z-10">
+          <button
+            onClick={() => onTabChange("match")}
+            className="p-4 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-2xl text-left transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono font-bold text-amber-400 uppercase">Step 1: Match & Fit</span>
+              <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-amber-400 transition-transform group-hover:translate-x-0.5" />
+            </div>
+            <p className="text-xs font-bold text-white">University Match Engine</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Audit your CGPA/WAEC against 53+ Chinese universities.</p>
+          </button>
+
+          <button
+            onClick={() => onTabChange("documents")}
+            className="p-4 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/40 rounded-2xl text-left transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase">Step 2: Pre-Check</span>
+              <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-cyan-400 transition-transform group-hover:translate-x-0.5" />
+            </div>
+            <p className="text-xs font-bold text-white">Document Diagnostic Center</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Audit passport, transcripts, and FME stamps for errors.</p>
+          </button>
+
+          <button
+            onClick={onStartCsca}
+            className="p-4 bg-slate-950/80 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-2xl text-left transition cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase">Step 3: Exam Prep</span>
+              <ArrowRight className="h-3.5 w-3.5 text-slate-500 group-hover:text-emerald-400 transition-transform group-hover:translate-x-0.5" />
+            </div>
+            <p className="text-xs font-bold text-white">1,000+ CSCA CBT Simulator</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Take timed practice exams in Math, Physics, and Logic.</p>
+          </button>
         </div>
       </div>
 
@@ -305,6 +344,133 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
+      </div>
+
+      {/* THREE-PHASE ADMISSIONS ROADMAP & COMMAND MATRIX */}
+      <div className="bg-[#050D1D] border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono font-bold uppercase mb-1">
+              <Sparkles className="h-3.5 w-3.5" />
+              Full Lifecycle Command Architecture
+            </div>
+            <h2 className="text-lg md:text-xl font-bold font-display text-white">
+              End-to-End Chinese University Admissions Roadmap
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Follow the verified sequential path from diagnostic readiness to Chinese campus arrival.
+            </p>
+          </div>
+        </div>
+
+        {/* 3 Interactive Roadmap Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans">
+          {/* Phase 1 Card */}
+          <div className="bg-slate-950/80 border border-slate-850 hover:border-amber-500/30 rounded-2xl p-5 space-y-4 flex flex-col justify-between transition">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded uppercase">
+                  Phase 1 • Complete
+                </span>
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+              </div>
+              <h3 className="text-sm font-bold text-white font-display">Diagnostic & University Matching</h3>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Filter 53+ institutions by CGPA/WAEC, run automated document audits, and practice 1,000+ CSCA CBT exam questions.
+              </p>
+
+              <div className="space-y-1.5 pt-1">
+                <button
+                  onClick={() => onTabChange("match")}
+                  className="w-full text-left px-3 py-2 bg-slate-900/80 hover:bg-slate-900 border border-slate-850 rounded-xl text-xs text-slate-300 hover:text-white flex items-center justify-between transition cursor-pointer"
+                >
+                  <span>1. University Match Engine</span>
+                  <ArrowRight className="h-3 w-3 text-slate-500" />
+                </button>
+                <button
+                  onClick={() => onTabChange("documents")}
+                  className="w-full text-left px-3 py-2 bg-slate-900/80 hover:bg-slate-900 border border-slate-850 rounded-xl text-xs text-slate-300 hover:text-white flex items-center justify-between transition cursor-pointer"
+                >
+                  <span>2. Document Diagnostic</span>
+                  <ArrowRight className="h-3 w-3 text-slate-500" />
+                </button>
+                <button
+                  onClick={onStartCsca}
+                  className="w-full text-left px-3 py-2 bg-slate-900/80 hover:bg-slate-900 border border-slate-850 rounded-xl text-xs text-slate-300 hover:text-white flex items-center justify-between transition cursor-pointer"
+                >
+                  <span>3. CSCA CBT Exam Simulator</span>
+                  <ArrowRight className="h-3 w-3 text-slate-500" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Phase 2 Card */}
+          <div className="bg-slate-950/80 border border-amber-500/30 hover:border-amber-500/50 rounded-2xl p-5 space-y-4 flex flex-col justify-between transition shadow-lg relative overflow-hidden">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 rounded uppercase">
+                  Phase 2 • Active
+                </span>
+                <Sparkles className="h-4 w-4 text-amber-400" />
+              </div>
+              <h3 className="text-sm font-bold text-white font-display">Dual App & Document Studio</h3>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Synchronize CampusChina.org with university portals, look up 5-digit Agency Codes, email professors, and generate bilingual study plans.
+              </p>
+
+              <div className="space-y-1.5 pt-1">
+                <button
+                  onClick={() => onTabChange("dual_app")}
+                  className="w-full text-left px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl text-xs text-amber-300 hover:text-amber-200 flex items-center justify-between transition cursor-pointer font-medium"
+                >
+                  <span>1. Dual App & Agency Codes</span>
+                  <ArrowRight className="h-3 w-3 text-amber-400" />
+                </button>
+                <button
+                  onClick={() => onTabChange("study_plan_studio")}
+                  className="w-full text-left px-3 py-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 rounded-xl text-xs text-indigo-300 hover:text-indigo-200 flex items-center justify-between transition cursor-pointer font-medium"
+                >
+                  <span>2. AI Study Plan Studio</span>
+                  <ArrowRight className="h-3 w-3 text-indigo-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Phase 3 Card */}
+          <div className="bg-slate-950/80 border border-purple-500/30 hover:border-purple-500/50 rounded-2xl p-5 space-y-4 flex flex-col justify-between transition shadow-lg relative overflow-hidden">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/20 border border-purple-500/40 px-2.5 py-0.5 rounded uppercase">
+                  Phase 3 • Active
+                </span>
+                <Plane className="h-4 w-4 text-purple-400" />
+              </div>
+              <h3 className="text-sm font-bold text-white font-display">Interviews, Visa & Landing</h3>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Practice simulated Chinese professor interviews, navigate JW201/202 CVASC visa submissions, and follow 24h China arrival protocols.
+              </p>
+
+              <div className="space-y-1.5 pt-1">
+                <button
+                  onClick={() => onTabChange("interview_sim")}
+                  className="w-full text-left px-3 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl text-xs text-purple-300 hover:text-purple-200 flex items-center justify-between transition cursor-pointer font-medium"
+                >
+                  <span>1. AI Mock Interview Simulator</span>
+                  <ArrowRight className="h-3 w-3 text-purple-400" />
+                </button>
+                <button
+                  onClick={() => onTabChange("visa_pre_departure")}
+                  className="w-full text-left px-3 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-xl text-xs text-cyan-300 hover:text-cyan-200 flex items-center justify-between transition cursor-pointer font-medium"
+                >
+                  <span>2. JW201/202 Visa & Landing</span>
+                  <ArrowRight className="h-3 w-3 text-cyan-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* DISASTER RECOVERY: DETECT & SOLVE PAYSTACK TRANSACTION DROPOUTS */}

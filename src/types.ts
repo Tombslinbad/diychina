@@ -1,7 +1,19 @@
 export interface UserProfile {
   uid: string;
   email: string;
+  fullName?: string;
+  phoneNumber?: string;
   premium: boolean;
+  onboarding?: {
+    degree?: string;
+    gpa?: string;
+    waecGrades?: string;
+    fieldOfStudy?: string;
+    hskLevel?: string;
+    cscType?: string;
+    motivation?: string;
+    age?: number;
+  };
   createdAt: string;
   updatedAt?: string;
   paymentReference?: string;
@@ -23,6 +35,9 @@ export interface University {
   applicationPortal: string;
   city: string;
   ranking: number;
+  lastVerified?: string;
+  sourceUrl?: string;
+  cscaRequirements?: string;
 }
 
 export interface ChatMessage {
@@ -33,14 +48,20 @@ export interface ChatMessage {
 
 export enum Tabs {
   WORKSPACE = "workspace",
-  PASSPORT = "passport",
+  MATCH = "match",
   DIRECTORY = "directory",
-  LANGUAGE_SCHOOLS = "language_schools",
-  FLIGHT_VISA = "flight_visa",
+  DOCUMENTS = "documents",
+  DUAL_APP = "dual_app",
+  STUDY_PLAN_STUDIO = "study_plan_studio",
   CSCA_CBT = "csca_cbt",
+  INTERVIEW_SIM = "interview_sim",
+  VISA_PRE_DEPARTURE = "visa_pre_departure",
   PROMPT_STATION = "prompt_station",
   CONSULTANT = "consultant",
   CHECKLIST = "checklist",
+  PASSPORT = "passport",
+  FLIGHT_VISA = "flight_visa",
+  LANGUAGE_SCHOOLS = "language_schools",
   ADMIN = "admin"
 }
 
@@ -52,5 +73,17 @@ export interface CSCAQuestion {
   explanation: string;
   subject?: string;
   medium?: string;
+}
+
+export interface StudentMatchProfile {
+  degree: "Bsc" | "Masters" | "PhD" | "Language";
+  field: string;
+  gpa: string;
+  waecStatus: "5_credits_science" | "5_credits_commercial" | "5_credits_arts" | "awaiting_results" | "hnd_bachelor";
+  age: number;
+  cscaStatus: "not_started" | "studying" | "scored_high" | "exempt";
+  languagePref: "english" | "chinese_hsk4" | "beginner";
+  preferredCity: string;
+  targetScholarship: "csc_type_b" | "csc_type_a" | "provincial" | "silk_road" | "any";
 }
 

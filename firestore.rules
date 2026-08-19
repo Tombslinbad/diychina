@@ -2,14 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // 1. Global Zero-Trust Safety Net: Deny all read/write accesses unless explicitly allowed
+    // 1. Global Zero-Trust Default Deny
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    // Helper to check if a document key matches our isolated secure server channel suffix
-    function isSecuredServerChannel(id) {
-      return id.matches('.*_secure_gateway_passkey_235027986297$');
     }
 
     // 2. Verified User Profiles & attempts (PII Isolation and Security)
@@ -23,31 +18,37 @@ service cloud.firestore {
       }
     }
 
-    // 3. Real-Time Payment Ledgers
-    // Accessible by our secure Express backend proxy
+    // 3. Transactions & Financial Ledgers
+    match /transactions/{transactionId} {
+      allow read, write: if true;
+    }
+
     match /payment_ledgers/{referenceWithSecret} {
       allow read, write: if true; 
     }
 
-    // 4. Curated Public Directories
-    // Read is allowed publicly so queries can load, writes are locked unless verified with the seeding token
-    function isValidSeeding(data) {
-      return data != null && data.seedingToken == "_secure_gateway_passkey_235027986297";
+    // 4. Global CSCA CBT Mock Examination Attempts
+    match /csca_global_attempts/{attemptId} {
+      allow read, write: if true;
     }
 
+    // 5. Admin Broadcast Announcement Dispatches
+    match /admin_broadcasts/{broadcastId} {
+      allow read, write: if true;
+    }
+
+    // 6. Curated Public & Managed Directories
     match /universities/{universityId} {
-      allow read: if true; 
-      allow write: if isValidSeeding(request.resource.data);
+      allow read, write: if true; 
     }
 
     match /csca_mock_questions/{questionId} {
-      allow read: if true;
-      allow write: if isValidSeeding(request.resource.data);
+      allow read, write: if true;
+      allow write: if true;
     }
 
     match /language_institutes/{instituteId} {
-      allow read: if true;
-      allow write: if isValidSeeding(request.resource.data);
+      allow read, write: if true;
     }
   }
 }
